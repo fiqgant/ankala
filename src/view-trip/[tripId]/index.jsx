@@ -77,7 +77,6 @@ function Viewtrip() {
       <InfoSection trip={trip} />
       <Hotels trip={trip} />
       <PlacesToVisit trip={trip} />
-      <Footer trip={trip} />
 
       <div className="text-center mt-10">
         <a
@@ -89,6 +88,8 @@ function Viewtrip() {
           Pesan via WhatsApp
         </a>
       </div>
+
+      <Footer trip={trip} />
     </div>
   );
 }
