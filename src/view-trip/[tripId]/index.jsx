@@ -521,7 +521,7 @@ Context:\n${JSON.stringify(ctx)}`;
 
       <div className="text-center mt-10">
         <a
-          href={`https://wa.me/628117778072?text=${waMessage}`}
+          href={`https://wa.me/6287844234005?text=${waMessage}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300"
