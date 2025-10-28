@@ -1,3 +1,4 @@
+// src/view-trip/[tripId]/index.jsx
 import { db } from "@/service/firebaseConfig";
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -9,14 +10,17 @@ import PlacesToVisit from "../components/PlacesToVisit";
 import Footer from "../components/Footer";
 import { chatSession } from "@/service/AIModel";
 
-// ---- JSON parser ----
-const safeJsonParse = (text) => {
-  if (!text) return null;
-  const s = String(text)
+// ---------- JSON helpers ----------
+const stripCodeFence = (text) =>
+  String(text || "")
     .trim()
     .replace(/^```json\s*/i, "")
     .replace(/^```/, "")
     .replace(/```$/, "");
+
+const safeJsonParse = (text) => {
+  if (!text) return null;
+  const s = stripCodeFence(text);
   try {
     return JSON.parse(s);
   } catch {
@@ -32,21 +36,30 @@ const safeJsonParse = (text) => {
   return null;
 };
 
+// ---------- Component ----------
 function Viewtrip() {
   const { tripId } = useParams();
   const [trip, setTrip] = useState({});
+  const [enhancedItinerary, setEnhancedItinerary] = useState(null);
+  const [useEnhanced, setUseEnhanced] = useState(true);
+
   const [aiTips, setAiTips] = useState([]);
   const [carbonTips, setCarbonTips] = useState([]);
+
   const [tipsLoading, setTipsLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
+  const [enhanceLoading, setEnhanceLoading] = useState(false);
 
   useEffect(() => {
-    tripId && GetTripData();
+    if (tripId) GetTripData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
-  // ---- adaptor: new schema -> legacy schema expected by components ----
+  // ---- adaptor: new schema -> legacy expected by components ----
   const adaptTripData = (data) => {
     if (!data) return data;
+
+    // Already legacy
     if (data.tripData?.hotel_options || data.tripData?.itinerary) return data;
 
     const td = data.tripData;
@@ -56,6 +69,7 @@ function Viewtrip() {
       Array.isArray(td?.itineraries) || Array.isArray(td?.hotel_suggestions);
     if (!isNew) return data;
 
+    // Map hotel_suggestions -> hotel_options
     const hotel_options = (td.hotel_suggestions || []).map((h) => ({
       name: h?.name || "",
       address: h?.address || "",
@@ -69,6 +83,7 @@ function Viewtrip() {
       description: h?.why_pick || "",
     }));
 
+    // Choose itinerary "balanced" if exists, else first
     let chosen =
       td.itineraries?.find((it) => it?.style === "balanced") ||
       td.itineraries?.[0];
@@ -122,6 +137,30 @@ function Viewtrip() {
     }
   };
 
+  // ====== Safe objects for children (avoid map() crash) ======
+  const tripForView = useMemo(() => {
+    const td = trip?.tripData || {};
+    return {
+      ...trip,
+      tripData: {
+        ...td,
+        hotel_options: Array.isArray(td?.hotel_options) ? td.hotel_options : [],
+        itinerary: Array.isArray(td?.itinerary) ? td.itinerary : [],
+      },
+    };
+  }, [trip]);
+
+  const tripWithEnhanced = useMemo(() => {
+    if (!useEnhanced || !Array.isArray(enhancedItinerary)) return tripForView;
+    return {
+      ...tripForView,
+      tripData: {
+        ...tripForView.tripData,
+        itinerary: enhancedItinerary,
+      },
+    };
+  }, [tripForView, useEnhanced, enhancedItinerary]);
+
   // ====== WhatsApp helpers ======
   const formatHotels = (hotels) => {
     if (!Array.isArray(hotels) || hotels.length === 0) return "No hotel data.";
@@ -159,19 +198,19 @@ function Viewtrip() {
       `📍 Destination: ${trip?.userSelection?.location?.label || "N/A"}\n` +
       `📅 Duration: ${trip?.userSelection?.noOfDays || "N/A"} days\n` +
       `👥 Travelers: ${trip?.userSelection?.traveler || "N/A"}\n\n` +
-      `🏨 Hotels:\n${formatHotels(trip?.tripData?.hotel_options)}\n\n` +
-      `📋 Itinerary:\n${formatItinerary(trip?.tripData?.itinerary)}\n\n` +
+      `🏨 Hotels:\n${formatHotels(tripForView?.tripData?.hotel_options)}\n\n` +
+      `📋 Itinerary:\n${formatItinerary(
+        tripWithEnhanced?.tripData?.itinerary
+      )}\n\n` +
       `Please share more info. Thanks!`
   );
 
-  // ====== Fallback travel tips ======
+  // ====== Heuristic fallback travel tips ======
   const fallbackTips = useMemo(() => {
     const tips = [];
-    const days = trip?.tripData?.itinerary || [];
+    const days = tripForView?.tripData?.itinerary || [];
     const plans = days.flatMap((d) => (Array.isArray(d?.plan) ? d.plan : []));
-    const free = plans.filter((p) =>
-      /(free|\$0|no ticket)/i.test(p?.ticket_pricing || "")
-    );
+
     const withRating = plans
       .map((p) => ({ ...p, _r: Number(p?.rating || 0) }))
       .sort((a, b) => b._r - a._r);
@@ -181,6 +220,10 @@ function Viewtrip() {
         title: "Top must-see",
         detail: top3.map((p) => `${p.place} (⭐${p._r})`).join(", "),
       });
+
+    const free = plans.filter((p) =>
+      /(free|\$0|no ticket)/i.test(p?.ticket_pricing || "")
+    );
     if (free.length)
       tips.push({
         title: "Free & fun",
@@ -189,17 +232,131 @@ function Viewtrip() {
           .map((x) => x.place)
           .join(", ")}.`,
       });
+
     tips.push({
-      title: "General tip",
-      detail: "Start early, carry water, and check opening hours beforehand.",
+      title: "Smart pacing",
+      detail: "Cluster nearby sights per day and leave a buffer slot.",
     });
-    return tips;
-  }, [trip]);
+
+    tips.push({
+      title: "Book ahead",
+      detail: "Tickets for popular sites and transport can sell out.",
+    });
+
+    return tips.slice(0, 6);
+  }, [tripForView]);
+
+  // ====== Heuristic fallback carbon tips ======
+  const carbonFallback = useMemo(() => {
+    const tips = [];
+    const days = tripForView?.tripData?.itinerary || [];
+    const plans = days.flatMap((d) => d?.plan || []);
+    const hasWalkable = plans.some((p) =>
+      /walk|foot|stroll/i.test(p?.travel_mode || "")
+    );
+    const hasCar = plans.some((p) =>
+      /car|taxi|grab|gojek|uber/i.test(p?.travel_mode || "")
+    );
+    const hasLong = plans.some((p) => Number(p?.est_travel_minutes || 0) >= 45);
+
+    tips.push({
+      title: "Group nearby sights",
+      detail: "Cut hops to reduce idle emissions & traffic.",
+    });
+    if (hasCar) {
+      tips.push({
+        title: "Fewer car legs",
+        detail: "Bundle stops or take one bus/minivan instead.",
+      });
+    }
+    if (hasWalkable) {
+      tips.push({
+        title: "Max walking windows",
+        detail: "Short city hops on foot beat taxis for CO₂.",
+      });
+    }
+    if (hasLong) {
+      tips.push({
+        title: "Swap one long ride",
+        detail: "Replace a 60–90 min car leg with public transport.",
+      });
+    }
+    tips.push({
+      title: "Eco lodging habits",
+      detail: "Reuse towels/linen and switch off AC when out.",
+    });
+    tips.push({
+      title: "Eat local",
+      detail: "Prefer local, seasonal menus to lower food miles.",
+    });
+
+    return tips.slice(0, 5);
+  }, [tripForView]);
+
+  // ====== AI: Enhance Itinerary (same schema) ======
+  useEffect(() => {
+    const enhance = async () => {
+      const base = tripForView?.tripData?.itinerary || [];
+      if (!base.length || enhanceLoading) return;
+
+      setEnhanceLoading(true);
+      try {
+        const ctx = {
+          destination: trip?.userSelection?.location?.label || "",
+          days: Number(trip?.userSelection?.noOfDays || base.length),
+          budget: String(trip?.userSelection?.budget || ""),
+          travelers: String(trip?.userSelection?.traveler || ""),
+          itinerary: base,
+        };
+
+        const prompt =
+          `You are a senior travel planner. Improve this itinerary for flow & pacing, but keep the SAME JSON SCHEMA.\n` +
+          `Rules:\n` +
+          `- Keep an array "itinerary": [{ "day": "Day X", "plan": [{ "time": "...", "place": "...", "details": "...", "ticket_pricing": "..." }] }]\n` +
+          `- Merge nearby sights in the same day, avoid ping-pong across town, keep 3–4 blocks/day max.\n` +
+          `- Use concise, practical details (<=220 chars each).\n` +
+          `- Use existing places when possible; you may add 1–2 missing obvious highlights.\n` +
+          `- Keep ticket_pricing values plain (e.g. "Free", "$5").\n` +
+          `Return ONLY a JSON object: {"itinerary":[...]} with the same field names.\n\n` +
+          `Context:\n${JSON.stringify(ctx)}`;
+
+        const res = await chatSession.sendMessage(prompt);
+        const raw = await res?.response?.text?.();
+        const parsed = safeJsonParse(raw);
+
+        let enhanced = null;
+        if (parsed && Array.isArray(parsed.itinerary)) {
+          enhanced = parsed.itinerary;
+        } else if (Array.isArray(parsed)) {
+          // If model returned raw array, accept it
+          enhanced = parsed;
+        }
+
+        if (Array.isArray(enhanced) && enhanced.length) {
+          setEnhancedItinerary(enhanced);
+          setUseEnhanced(true);
+        } else {
+          setEnhancedItinerary(null);
+          setUseEnhanced(false);
+        }
+      } catch (e) {
+        console.warn("Enhance itinerary failed:", e?.message || e);
+        setEnhancedItinerary(null);
+        setUseEnhanced(false);
+      } finally {
+        setEnhanceLoading(false);
+      }
+    };
+    enhance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripForView]);
 
   // ====== AI travel recommendations ======
   useEffect(() => {
     const run = async () => {
-      if (!trip?.tripData?.itinerary || tipsLoading) return;
+      const base = tripWithEnhanced?.tripData?.itinerary || [];
+      if (!base.length || tipsLoading) return;
+
       setTipsLoading(true);
       try {
         const ctx = {
@@ -207,19 +364,25 @@ function Viewtrip() {
           days: trip?.userSelection?.noOfDays,
           budget: trip?.userSelection?.budget,
           travelers: trip?.userSelection?.traveler,
-          itinerary: trip?.tripData?.itinerary,
+          itinerary: base,
         };
 
-        const prompt = `You are a travel expert. Based on this context, provide up to 6 actionable travel tips in English, JSON only:
-[{"title":"...","detail":"..."}]
+        const prompt = `You are a travel expert. Provide up to 6 actionable travel tips in English based on the context.
+Return ONLY a JSON object: {"tips":[{"title":"...","detail":"..."}]}.
+Keep each detail <= 150 chars.
 Context:\n${JSON.stringify(ctx)}`;
 
         const res = await chatSession.sendMessage(prompt);
         const raw = await res?.response?.text?.();
         const parsed = safeJsonParse(raw);
-        if (Array.isArray(parsed) && parsed.length) {
-          setAiTips(parsed.slice(0, 6));
-        } else setAiTips([]);
+
+        let arr = [];
+        if (Array.isArray(parsed)) {
+          arr = parsed;
+        } else if (parsed && Array.isArray(parsed.tips)) {
+          arr = parsed.tips;
+        }
+        setAiTips((arr || []).slice(0, 6));
       } catch (e) {
         console.warn("AI tips failed:", e);
         setAiTips([]);
@@ -228,36 +391,43 @@ Context:\n${JSON.stringify(ctx)}`;
       }
     };
     run();
-  }, [trip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripWithEnhanced]);
 
   // ====== AI carbon footprint recommendations ======
   useEffect(() => {
     const runCarbon = async () => {
-      if (!trip?.tripData?.itinerary || carbonLoading) return;
+      const base = tripWithEnhanced?.tripData?.itinerary || [];
+      if (!base.length || carbonLoading) return;
+
       setCarbonLoading(true);
       try {
         const ctx = {
           destination: trip?.userSelection?.location?.label || "",
           days: trip?.userSelection?.noOfDays,
-          itinerary: trip?.tripData?.itinerary,
-          hotels: trip?.tripData?.hotel_options,
+          itinerary: base,
+          hotels: tripForView?.tripData?.hotel_options,
           budget: trip?.userSelection?.budget,
           travelers: trip?.userSelection?.traveler,
         };
 
         const prompt = `You are a sustainability and travel carbon expert.
-Analyze this trip and suggest up to 5 **eco-friendly travel tips** in English
-to reduce the carbon footprint — transportation, lodging, meals, and activity choices.
-Return ONLY valid JSON array like [{"title":"...","detail":"..."}].
-Keep each detail concise (<150 chars).
+Suggest up to 5 eco-friendly tips (transport, lodging, meals, activities) to reduce emissions.
+Return ONLY a JSON object: {"tips":[{"title":"...","detail":"..."}]}.
+Each detail <= 150 chars.
 Context:\n${JSON.stringify(ctx)}`;
 
         const res = await chatSession.sendMessage(prompt);
         const raw = await res?.response?.text?.();
         const parsed = safeJsonParse(raw);
-        if (Array.isArray(parsed) && parsed.length) {
-          setCarbonTips(parsed.slice(0, 5));
-        } else setCarbonTips([]);
+
+        let arr = [];
+        if (Array.isArray(parsed)) {
+          arr = parsed;
+        } else if (parsed && Array.isArray(parsed.tips)) {
+          arr = parsed.tips;
+        }
+        setCarbonTips((arr || []).slice(0, 5));
       } catch (e) {
         console.warn("AI carbon tips failed:", e);
         setCarbonTips([]);
@@ -266,15 +436,44 @@ Context:\n${JSON.stringify(ctx)}`;
       }
     };
     runCarbon();
-  }, [trip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripWithEnhanced]);
 
   const tipsFinal = aiTips.length ? aiTips : fallbackTips;
+  const carbonFinal = carbonTips.length ? carbonTips : carbonFallback;
 
   return (
     <div className="p-10 md:px-20 lg:px-44 xl:px-56">
       <InfoSection trip={trip} />
-      <Hotels trip={trip} />
-      <PlacesToVisit trip={trip} />
+
+      {/* Toggle enhanced/original itinerary */}
+      <div className="flex items-center gap-3 mt-6">
+        <span className="text-sm text-gray-600">Itinerary view:</span>
+        <button
+          type="button"
+          disabled={!enhancedItinerary}
+          onClick={() => setUseEnhanced((v) => !v)}
+          className={`px-3 py-1 rounded border text-sm ${
+            enhancedItinerary
+              ? "hover:bg-gray-100"
+              : "opacity-50 cursor-not-allowed"
+          }`}
+          title={
+            enhancedItinerary
+              ? "Toggle Original / Enhanced"
+              : "Enhanced itinerary not available yet"
+          }
+        >
+          {enhanceLoading
+            ? "Enhancing…"
+            : useEnhanced && enhancedItinerary
+            ? "Enhanced"
+            : "Original"}
+        </button>
+      </div>
+
+      <Hotels trip={tripForView} />
+      <PlacesToVisit trip={tripWithEnhanced} />
 
       {/* ====== Travel Recommendations ====== */}
       <div className="mt-10">
@@ -291,6 +490,9 @@ Context:\n${JSON.stringify(ctx)}`;
               <p className="text-sm text-gray-600 mt-1">{tip.detail}</p>
             </div>
           ))}
+          {!tipsFinal.length && !tipsLoading && (
+            <div className="text-sm text-gray-500">No tips available.</div>
+          )}
         </div>
       </div>
 
@@ -300,20 +502,19 @@ Context:\n${JSON.stringify(ctx)}`;
           Carbon Footprint Tips {carbonLoading ? "(analyzing…)" : ""}
         </h2>
         <div className="grid md:grid-cols-2 gap-4 mt-4">
-          {carbonTips.length > 0 ? (
-            carbonTips.map((tip, i) => (
-              <div
-                key={`${tip.title}-${i}`}
-                className="border border-green-400 bg-green-50 rounded-xl p-4 shadow-sm hover:shadow-md transition"
-              >
-                <h3 className="font-semibold text-green-800">🌱 {tip.title}</h3>
-                <p className="text-sm text-green-700 mt-1">{tip.detail}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500 text-sm">
+          {carbonFinal.map((tip, i) => (
+            <div
+              key={`${tip.title}-${i}`}
+              className="border border-green-400 bg-green-50 rounded-xl p-4 shadow-sm hover:shadow-md transition"
+            >
+              <h3 className="font-semibold text-green-800">🌱 {tip.title}</h3>
+              <p className="text-sm text-green-700 mt-1">{tip.detail}</p>
+            </div>
+          ))}
+          {!carbonFinal.length && !carbonLoading && (
+            <div className="text-sm text-gray-500">
               No carbon recommendations yet.
-            </p>
+            </div>
           )}
         </div>
       </div>
