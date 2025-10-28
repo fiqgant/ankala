@@ -9,7 +9,7 @@ import PlacesToVisit from "../components/PlacesToVisit";
 import Footer from "../components/Footer";
 import { chatSession } from "@/service/AIModel";
 
-// ---- tiny helpers ----
+// ---- JSON parser ----
 const safeJsonParse = (text) => {
   if (!text) return null;
   const s = String(text)
@@ -20,7 +20,6 @@ const safeJsonParse = (text) => {
   try {
     return JSON.parse(s);
   } catch {
-    // try cut to outermost object/array
     const start = s.indexOf("[") !== -1 ? s.indexOf("[") : s.indexOf("{");
     const end = Math.max(s.lastIndexOf("]"), s.lastIndexOf("}"));
     if (start !== -1 && end > start) {
@@ -37,7 +36,9 @@ function Viewtrip() {
   const { tripId } = useParams();
   const [trip, setTrip] = useState({});
   const [aiTips, setAiTips] = useState([]);
+  const [carbonTips, setCarbonTips] = useState([]);
   const [tipsLoading, setTipsLoading] = useState(false);
+  const [carbonLoading, setCarbonLoading] = useState(false);
 
   useEffect(() => {
     tripId && GetTripData();
@@ -46,8 +47,6 @@ function Viewtrip() {
   // ---- adaptor: new schema -> legacy schema expected by components ----
   const adaptTripData = (data) => {
     if (!data) return data;
-
-    // If already legacy
     if (data.tripData?.hotel_options || data.tripData?.itinerary) return data;
 
     const td = data.tripData;
@@ -57,7 +56,6 @@ function Viewtrip() {
       Array.isArray(td?.itineraries) || Array.isArray(td?.hotel_suggestions);
     if (!isNew) return data;
 
-    // Map hotel_suggestions -> hotel_options
     const hotel_options = (td.hotel_suggestions || []).map((h) => ({
       name: h?.name || "",
       address: h?.address || "",
@@ -71,7 +69,6 @@ function Viewtrip() {
       description: h?.why_pick || "",
     }));
 
-    // Choose itinerary "balanced" if exists, else the first
     let chosen =
       td.itineraries?.find((it) => it?.style === "balanced") ||
       td.itineraries?.[0];
@@ -102,7 +99,7 @@ function Viewtrip() {
       });
     }
 
-    const legacy = {
+    return {
       ...data,
       tripData: {
         ...(td || {}),
@@ -110,7 +107,6 @@ function Viewtrip() {
         itinerary,
       },
     };
-    return legacy;
   };
 
   const GetTripData = async () => {
@@ -126,32 +122,34 @@ function Viewtrip() {
     }
   };
 
-  // ====== WhatsApp helpers (unchanged) ======
+  // ====== WhatsApp helpers ======
   const formatHotels = (hotels) => {
     if (!Array.isArray(hotels) || hotels.length === 0) return "No hotel data.";
     return hotels
-      .map((hotel, index) => {
-        return `${index + 1}. ${hotel?.name || "-"}\n📍 ${
-          hotel?.address || "-"
-        }\n💰 ${hotel?.price || "N/A"}\n⭐ ${hotel?.rating ?? "N/A"}`;
-      })
+      .map(
+        (h, i) =>
+          `${i + 1}. ${h?.name || "-"}\n📍 ${h?.address || "-"}\n💰 ${
+            h?.price || "N/A"
+          }\n⭐ ${h?.rating ?? "N/A"}`
+      )
       .join("\n\n");
   };
 
   const formatItinerary = (days) => {
     if (!Array.isArray(days) || days.length === 0) return "No itinerary.";
     return days
-      .map((day, index) => {
-        const activities = Array.isArray(day?.plan)
+      .map((day, idx) => {
+        const act = Array.isArray(day?.plan)
           ? day.plan
-              .map((item) => {
-                return `🕒 ${item?.time || "-"}\n📍 ${item?.place || "-"}\n📄 ${
-                  item?.details || "-"
-                }\n🏷️ Ticket: ${item?.ticket_pricing || "N/A"}`;
-              })
+              .map(
+                (p) =>
+                  `🕒 ${p?.time || "-"}\n📍 ${p?.place || "-"}\n📄 ${
+                    p?.details || "-"
+                  }\n🏷️ Ticket: ${p?.ticket_pricing || "N/A"}`
+              )
               .join("\n\n")
           : "";
-        return `📅 ${day?.day || `Day ${index + 1}`}\n${activities}`;
+        return `📅 ${day?.day || `Day ${idx + 1}`}\n${act}`;
       })
       .join("\n\n---\n\n");
   };
@@ -166,94 +164,39 @@ function Viewtrip() {
       `Please share more info. Thanks!`
   );
 
-  // ====== Heuristic fallback tips (English) ======
+  // ====== Fallback travel tips ======
   const fallbackTips = useMemo(() => {
     const tips = [];
     const days = trip?.tripData?.itinerary || [];
-    const budget = String(trip?.userSelection?.budget || "").toLowerCase();
-    const traveler = String(trip?.userSelection?.traveler || "");
-    const totalDays = Number(trip?.userSelection?.noOfDays || days.length || 0);
-
     const plans = days.flatMap((d) => (Array.isArray(d?.plan) ? d.plan : []));
-    const paid = plans.filter((p) => {
-      const price = (p?.ticket_pricing || "").replace("$", "");
-      return !isNaN(Number(price)) && Number(price) > 0;
-    });
-    const free = plans.filter((p) => {
-      const price = (p?.ticket_pricing || "").replace("$", "");
-      return p?.ticket_pricing === "Free" || Number(price) === 0;
-    });
-
+    const free = plans.filter((p) =>
+      /(free|\$0|no ticket)/i.test(p?.ticket_pricing || "")
+    );
     const withRating = plans
       .map((p) => ({ ...p, _r: Number(p?.rating || 0) }))
       .sort((a, b) => b._r - a._r);
-
-    const early = plans.find((p) => /^0?\d|^1?\d:/.test(String(p?.time || "")));
-    const late = plans
-      .slice()
-      .reverse()
-      .find((p) => /19:|20:|21:/.test(String(p?.time || "")));
-    if (early)
-      tips.push({
-        title: "Start early",
-        detail: `Beat queues and heat by starting at ${early.place} (${early.time}).`,
-      });
-    if (late)
-      tips.push({
-        title: "Golden hour / night vibe",
-        detail: `Consider ${late.place} in the evening (${late.time}) for cooler temps and ambiance.`,
-      });
-
-    if (budget.includes("cheap") || budget.includes("low")) {
-      tips.push({
-        title: "Budget-first picks",
-        detail: `There are ${free.length} free activities—do those first, then choose a few paid highlights (~${paid.length}).`,
-      });
-    }
-
     const top3 = withRating.slice(0, 3).filter((p) => p._r > 0);
-    if (top3.length) {
+    if (top3.length)
       tips.push({
         title: "Top must-see",
         detail: top3.map((p) => `${p.place} (⭐${p._r})`).join(", "),
       });
-    }
-
-    const rainAlt = plans.filter((p) => p?.rain_alternative);
-    if (rainAlt.length) {
+    if (free.length)
       tips.push({
-        title: "Rain plan",
-        detail: rainAlt
-          .slice(0, 3)
-          .map((p) => `${p.place} → ${p.rain_alternative}`)
-          .join(" | "),
+        title: "Free & fun",
+        detail: `Enjoy ${free.length} free activities such as ${free
+          .slice(0, 2)
+          .map((x) => x.place)
+          .join(", ")}.`,
       });
-    }
-
-    if (totalDays >= 2)
-      tips.push({
-        title: "Keep a comfortable pace",
-        detail:
-          "Group nearby sights per day and leave one relaxed slot for meals/rest.",
-      });
-    if (/(people|family|kids|anak)/i.test(traveler))
-      tips.push({
-        title: "Group travel tip",
-        detail:
-          "Prefer walkable areas with restrooms; pre-book transport to stay coordinated.",
-      });
-
-    if (!tips.length)
-      tips.push({
-        title: "General tip",
-        detail:
-          "Start early, carry water/hat/umbrella, and check opening hours beforehand.",
-      });
-
-    return tips.slice(0, 6);
+    tips.push({
+      title: "General tip",
+      detail: "Start early, carry water, and check opening hours beforehand.",
+    });
+    return tips;
   }, [trip]);
 
-  // ====== AI tips (Gemini) ======
+  // ====== AI travel recommendations ======
   useEffect(() => {
     const run = async () => {
       if (!trip?.tripData?.itinerary || tipsLoading) return;
@@ -261,60 +204,71 @@ function Viewtrip() {
       try {
         const ctx = {
           destination: trip?.userSelection?.location?.label || "",
-          days: Number(trip?.userSelection?.noOfDays || 0),
-          budget: trip?.userSelection?.budget || "",
-          travelers: trip?.userSelection?.traveler || "",
-          itinerary: (trip?.tripData?.itinerary || []).map((d) => ({
-            day: d?.day,
-            plan: (d?.plan || []).map((p) => ({
-              time: p?.time,
-              place: p?.place,
-              details: p?.details,
-              ticket: p?.ticket_pricing,
-              rating: p?.rating || null,
-              rain_alternative: p?.rain_alternative || null,
-            })),
-          })),
+          days: trip?.userSelection?.noOfDays,
+          budget: trip?.userSelection?.budget,
+          travelers: trip?.userSelection?.traveler,
+          itinerary: trip?.tripData?.itinerary,
         };
 
-        const prompt =
-          `You are a travel expert.\n` +
-          `Given the following trip context, produce up to 6 **actionable travel recommendations** in **English**, tailored to the destination, pace, budget, and travelers.\n` +
-          `Keep each detail concise (max 140 chars), practical, and specific.\n` +
-          `Return **ONLY JSON**, no markdown, as an array of objects: [{"title": "...", "detail": "..."}].\n\n` +
-          `Context:\n${JSON.stringify(ctx)}`;
+        const prompt = `You are a travel expert. Based on this context, provide up to 6 actionable travel tips in English, JSON only:
+[{"title":"...","detail":"..."}]
+Context:\n${JSON.stringify(ctx)}`;
 
         const res = await chatSession.sendMessage(prompt);
         const raw = await res?.response?.text?.();
         const parsed = safeJsonParse(raw);
         if (Array.isArray(parsed) && parsed.length) {
-          setAiTips(
-            parsed.slice(0, 6).map((x) => ({
-              title:
-                String(x?.title || "")
-                  .trim()
-                  .slice(0, 80) || "Tip",
-              detail:
-                String(x?.detail || "")
-                  .trim()
-                  .slice(0, 180) || "",
-            }))
-          );
-        } else {
-          setAiTips([]);
-        }
+          setAiTips(parsed.slice(0, 6));
+        } else setAiTips([]);
       } catch (e) {
-        console.warn("AI tips failed, using fallback:", e?.message || e);
+        console.warn("AI tips failed:", e);
         setAiTips([]);
       } finally {
         setTipsLoading(false);
       }
     };
     run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip]);
 
-  const tipsFinal = (aiTips?.length ? aiTips : fallbackTips).slice(0, 6);
+  // ====== AI carbon footprint recommendations ======
+  useEffect(() => {
+    const runCarbon = async () => {
+      if (!trip?.tripData?.itinerary || carbonLoading) return;
+      setCarbonLoading(true);
+      try {
+        const ctx = {
+          destination: trip?.userSelection?.location?.label || "",
+          days: trip?.userSelection?.noOfDays,
+          itinerary: trip?.tripData?.itinerary,
+          hotels: trip?.tripData?.hotel_options,
+          budget: trip?.userSelection?.budget,
+          travelers: trip?.userSelection?.traveler,
+        };
+
+        const prompt = `You are a sustainability and travel carbon expert.
+Analyze this trip and suggest up to 5 **eco-friendly travel tips** in English
+to reduce the carbon footprint — transportation, lodging, meals, and activity choices.
+Return ONLY valid JSON array like [{"title":"...","detail":"..."}].
+Keep each detail concise (<150 chars).
+Context:\n${JSON.stringify(ctx)}`;
+
+        const res = await chatSession.sendMessage(prompt);
+        const raw = await res?.response?.text?.();
+        const parsed = safeJsonParse(raw);
+        if (Array.isArray(parsed) && parsed.length) {
+          setCarbonTips(parsed.slice(0, 5));
+        } else setCarbonTips([]);
+      } catch (e) {
+        console.warn("AI carbon tips failed:", e);
+        setCarbonTips([]);
+      } finally {
+        setCarbonLoading(false);
+      }
+    };
+    runCarbon();
+  }, [trip]);
+
+  const tipsFinal = aiTips.length ? aiTips : fallbackTips;
 
   return (
     <div className="p-10 md:px-20 lg:px-44 xl:px-56">
@@ -322,7 +276,7 @@ function Viewtrip() {
       <Hotels trip={trip} />
       <PlacesToVisit trip={trip} />
 
-      {/* ====== Travel Recommendations (AI) ====== */}
+      {/* ====== Travel Recommendations ====== */}
       <div className="mt-10">
         <h2 className="font-bold text-xl">
           Travel Recommendations {tipsLoading ? "(generating…)" : ""}
@@ -337,8 +291,29 @@ function Viewtrip() {
               <p className="text-sm text-gray-600 mt-1">{tip.detail}</p>
             </div>
           ))}
-          {!tipsFinal.length && !tipsLoading && (
-            <div className="text-sm text-gray-500">No tips available.</div>
+        </div>
+      </div>
+
+      {/* ====== Carbon Footprint Tips ====== */}
+      <div className="mt-10">
+        <h2 className="font-bold text-xl text-green-700">
+          Carbon Footprint Tips {carbonLoading ? "(analyzing…)" : ""}
+        </h2>
+        <div className="grid md:grid-cols-2 gap-4 mt-4">
+          {carbonTips.length > 0 ? (
+            carbonTips.map((tip, i) => (
+              <div
+                key={`${tip.title}-${i}`}
+                className="border border-green-400 bg-green-50 rounded-xl p-4 shadow-sm hover:shadow-md transition"
+              >
+                <h3 className="font-semibold text-green-800">🌱 {tip.title}</h3>
+                <p className="text-sm text-green-700 mt-1">{tip.detail}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500 text-sm">
+              No carbon recommendations yet.
+            </p>
           )}
         </div>
       </div>
