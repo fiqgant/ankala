@@ -350,7 +350,7 @@ function Viewtrip() {
           rel="noopener noreferrer"
           className="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300"
         >
-          Pesan via WhatsApp
+          Order via WhatsApp
         </a>
       </div>
 
