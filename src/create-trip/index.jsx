@@ -24,21 +24,46 @@ import { useNavigate } from "react-router-dom";
 import AsyncSelect from "react-select/async";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-// -------- LocationSelect --------
-// Tetap pakai komponen yang sama, tapi sekarang:
-// 1. coba hit proxy /api/osm/search (buat production, no CORS dari browser -> server kamu yg manggil OSM)
-// 2. fallback langsung ke nominatim kalau proxy error (buat dev lokal)
+/* -------------------------------------------------
+   LocationSelect
+   -------------------------------------------------
+   Goal:
+   - In PROD (ankala.id): ONLY call /api/osm/search (must be proxied by your backend/server/nginx).
+     If that returns non-JSON (like your <!DOCTYPE ...> now), we just return [] silently.
+     -> no direct call ke nominatim (biar ga CORS error merah).
+   - In DEV (localhost etc.): call nominatim directly (no proxy).
+*/
 function LocationSelect({ value, onChange }) {
-  const fetchViaProxy = async (params) => {
-    const resp = await fetch(`/api/osm/search?${params.toString()}`);
-    if (!resp.ok) {
-      throw new Error("proxy failed " + resp.status);
+  // simple env check
+  const isProdHost = (() => {
+    try {
+      return window?.location?.hostname === "ankala.id";
+    } catch {
+      return false;
     }
-    return resp.json();
+  })();
+
+  const fetchViaProxy = async (params) => {
+    const url = `/api/osm/search?${params.toString()}`;
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    // proxy kamu sekarang balikin HTML -> resp.json() bakal throw.
+    // Jadi kita guard manual:
+    const text = await resp.text();
+    try {
+      const json = JSON.parse(text);
+      return json;
+    } catch {
+      console.warn("[OSM proxy] Not JSON yet (probably not wired).");
+      return [];
+    }
   };
 
-  const fetchDirect = async (params) => {
-    // NOTE: ini kena CORS di production, tapi kita keep sebagai fallback dev
+  const fetchDirectNominatim = async (params) => {
     const resp = await fetch(
       `https://nominatim.openstreetmap.org/search?${params.toString()}`,
       {
@@ -48,13 +73,12 @@ function LocationSelect({ value, onChange }) {
         },
       }
     );
-    if (!resp.ok) {
-      throw new Error("direct OSM failed " + resp.status);
-    }
-    return resp.json();
+    // kalau CORS block di prod, ini akan throw sebelum resp.ok.
+    const data = await resp.json();
+    return data;
   };
 
-  const search = async (query) => {
+  const searchCore = async (query) => {
     if (!query || query.trim().length < 2) return [];
 
     const params = new URLSearchParams({
@@ -65,8 +89,8 @@ function LocationSelect({ value, onChange }) {
       extratags: "0",
     });
 
-    try {
-      // coba lewat proxy dulu
+    // PROD path: proxy only
+    if (isProdHost) {
       const data = await fetchViaProxy(params);
       return (data || []).map((item) => ({
         label: item.display_name,
@@ -79,37 +103,47 @@ function LocationSelect({ value, onChange }) {
           raw: item,
         },
       }));
-    } catch (errProxy) {
-      console.warn("[OSM proxy error]", errProxy?.message || errProxy);
+    }
 
-      // fallback ke direct nominatim (ini mungkin cuma jalan di localhost)
-      try {
-        const data = await fetchDirect(params);
-        return (data || []).map((item) => ({
-          label: item.display_name,
-          value: {
-            lat: parseFloat(item.lat),
-            lon: parseFloat(item.lon),
-            osm_id: item.osm_id,
-            osm_type: item.osm_type,
-            boundingbox: item.boundingbox,
-            raw: item,
-          },
-        }));
-      } catch (errDirect) {
-        console.error("[OSM direct error]", errDirect?.message || errDirect);
-        return [];
-      }
+    // DEV path: try direct first (easier local dev)
+    try {
+      const data = await fetchDirectNominatim(params);
+      return (data || []).map((item) => ({
+        label: item.display_name,
+        value: {
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          osm_id: item.osm_id,
+          osm_type: item.osm_type,
+          boundingbox: item.boundingbox,
+          raw: item,
+        },
+      }));
+    } catch (errDirect) {
+      console.warn("[OSM direct fail - dev]", errDirect?.message || errDirect);
+      // optional: fallback proxy in dev if you set one locally
+      const data = await fetchViaProxy(params);
+      return (data || []).map((item) => ({
+        label: item.display_name,
+        value: {
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          osm_id: item.osm_id,
+          osm_type: item.osm_type,
+          boundingbox: item.boundingbox,
+          raw: item,
+        },
+      }));
     }
   };
 
-  // debounce biar gak spam API
+  // debounce loader for AsyncSelect
   const loadOptions = useMemo(() => {
     let timeout;
     return (inputValue, callback) => {
       clearTimeout(timeout);
       timeout = setTimeout(async () => {
-        const results = await search(inputValue);
+        const results = await searchCore(inputValue);
         callback(results);
       }, 350);
     };
@@ -128,7 +162,9 @@ function LocationSelect({ value, onChange }) {
   );
 }
 
-// ===== Build prompt: bikin itinerary yang "lebih mantap"
+/* -------------------------------------------------
+   Prompt builder
+   ------------------------------------------------- */
 function buildPrompt({ location, noOfDays, traveler, budget }) {
   const locLabel = location?.label || "";
   const days = Number(noOfDays) || 3;
@@ -224,25 +260,27 @@ ONE SINGLE LINE of valid JSON. Do not include \`\`\` or any extra text. Final ch
 `;
 }
 
-// --- Parser aman untuk respon AI jadi object JS ---
+/* -------------------------------------------------
+   Safe JSON parser for AI output
+   ------------------------------------------------- */
 function safeJsonParseMaybe(text) {
   if (!text) throw new Error("Empty response from AI");
   let raw = String(text);
 
-  // buang code fence kalau ada
+  // Strip code fences if any
   raw = raw
     .trim()
     .replace(/^```[a-zA-Z]*\n?/, "")
     .replace(/```$/, "");
 
-  // normalisasi kutip aneh + whitespace non-break
+  // Normalize weird quotes / nbsp / newlines
   raw = raw
     .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
     .replace(/[\u2018\u2019\u201B]/g, "'")
     .replace(/\u00A0/g, " ")
     .replace(/[\r\n]+/g, " ");
 
-  // ambil blok JSON terbesar yang balanced {}
+  // Extract largest balanced {...}
   const extractLargestJson = (s) => {
     const start = s.indexOf("{");
     if (start === -1) return s;
@@ -273,13 +311,13 @@ function safeJsonParseMaybe(text) {
   };
   raw = extractLargestJson(raw);
 
-  // hapus trailing comma yang bikin invalid
+  // Remove trailing commas
   raw = raw.replace(/,\s*([}\]])/g, "$1");
 
-  // ubah undefined -> null
+  // Replace undefined with null
   raw = raw.replace(/:\s*undefined(\s*[,\}])/g, ": null$1");
 
-  // buang komentar gaya JS
+  // Remove // and /* */ style comments
   raw = raw
     .replace(/\/\/[^\n\r]*[\n\r]?/g, "")
     .replace(/\/\*[\s\S]*?\*\//g, "");
@@ -296,6 +334,9 @@ function safeJsonParseMaybe(text) {
   }
 }
 
+/* -------------------------------------------------
+   Main Component
+   ------------------------------------------------- */
 function CreateTrip() {
   const [place, setPlace] = useState(null);
   const [formData, setFormData] = useState({});
@@ -502,7 +543,7 @@ function CreateTrip() {
       <Dialog open={openDialog}>
         <DialogContent>
           <DialogHeader>
-            {/* Tambah VisuallyHidden title supaya Radix gak warning accessibility */}
+            {/* Radix a11y requirement */}
             <VisuallyHidden asChild>
               <h2>Sign In Required</h2>
             </VisuallyHidden>
