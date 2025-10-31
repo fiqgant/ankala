@@ -22,66 +22,71 @@ import { db } from "@/service/firebaseConfig";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
 import AsyncSelect from "react-select/async";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-// ---- Open-source map search (OSM Nominatim) ----
+/* -------------------------------------------------
+   LocationSelect
+   -------------------------------------------------
+   Versi no-external-fetch (tanpa Nominatim, jadi no CORS).
+   UX:
+   - User ketik "medan"
+   - Dropdown akan muncul: "Use 'medan' as destination"
+   - Kalau user pilih itu, kita simpan {label:"medan", value:{...}}
+------------------------------------------------- */
 function LocationSelect({ value, onChange }) {
-  const search = async (query) => {
-    if (!query || query.trim().length < 2) return [];
-    const params = new URLSearchParams({
-      q: query,
-      format: "json",
-      addressdetails: "1",
-      limit: "8",
-      extratags: "0",
-    });
-    const resp = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+  // generator opsi lokal
+  const makeOptionFromInput = (q) => {
+    const label = q.trim();
+    if (!label) return [];
+    return [
       {
-        headers: {
-          "User-Agent": "TripPlanner/1.0",
-          "Accept-Language": navigator.language || "en",
+        label,
+        value: {
+          lat: null,
+          lon: null,
+          source: "manual",
+          raw: { display_name: label },
         },
-      }
-    );
-    const data = await resp.json();
-    return (data || []).map((item) => ({
-      label: item.display_name,
-      value: {
-        lat: parseFloat(item.lat),
-        lon: parseFloat(item.lon),
-        osm_id: item.osm_id,
-        osm_type: item.osm_type,
-        boundingbox: item.boundingbox,
-        raw: item,
       },
-    }));
+    ];
   };
 
+  // loadOptions dipanggil react-select Async
   const loadOptions = useMemo(() => {
     let timeout;
     return (inputValue, callback) => {
       clearTimeout(timeout);
-      timeout = setTimeout(async () => {
-        const results = await search(inputValue);
-        callback(results);
-      }, 350);
+      timeout = setTimeout(() => {
+        callback(makeOptionFromInput(inputValue || ""));
+      }, 200);
     };
   }, []);
 
   return (
     <AsyncSelect
       cacheOptions
-      defaultOptions={false}
+      defaultOptions={value ? [value] : []}
       loadOptions={loadOptions}
-      placeholder="Search destination (OpenStreetMap)"
+      placeholder="Type your destination city / area"
       value={value}
       onChange={onChange}
       classNamePrefix="osm-select"
+      noOptionsMessage={({ inputValue }) =>
+        inputValue?.length < 2
+          ? "Type at least 2 characters"
+          : `Use "${inputValue}"`
+      }
     />
   );
 }
 
-// ===== Build prompt “itinerary lebih mantap” =====
+/* -------------------------------------------------
+   buildPrompt
+   -------------------------------------------------
+   Prompt untuk minta AI bikin itinerary yg rapi,
+   3 style (relaxed/balanced/packed),
+   hotel suggestions, dsb.
+------------------------------------------------- */
 function buildPrompt({ location, noOfDays, traveler, budget }) {
   const locLabel = location?.label || "";
   const days = Number(noOfDays) || 3;
@@ -99,14 +104,20 @@ Input:
 
 Rules (hard):
 - Create EXACTLY 3 itinerary options with styles: ["relaxed","balanced","packed"].
-- Cluster places by area to minimize travel time; avoid backtracking.
-- EACH DAY: MAX 3 blocks. Time "HH:MM-HH:MM".
-- Keep ANY description <= 140 chars.
-- Include meal_suggestion, plan_b, rain_alternative, but keep each string short.
-- For each place include: name, category, short_desc, lat, lon, est_ticket (USD number), rating (0-5), travel_mode, est_travel_minutes.
-- For each day include: est_daily_spend_usd (int) and rationale (<= 140 chars).
-- Hotel suggestions: 3-5 items.
-- Ensure the JSON is compact and not verbose.
+- Cluster nearby places together per day to reduce travel time.
+- Each day: MAX 3 activity blocks. Time format "HH:MM-HH:MM".
+- Keep any description <= 140 chars. Be practical, not poetic.
+- Include meal_suggestion, plan_b, rain_alternative in each block.
+- For each place include:
+  name, category, short_desc, lat, lon,
+  est_ticket (USD number),
+  rating (0-5),
+  travel_mode, est_travel_minutes
+- For each day include:
+  est_daily_spend_usd (int),
+  rationale (<=140 chars, explain cost/pace).
+- Give 3-5 hotel suggestions with price, rating, why_pick.
+- End with "notes": general safety/etiquette tips.
 
 JSON Schema (strict):
 {
@@ -166,47 +177,55 @@ JSON Schema (strict):
 }
 
 Output format:
-- ONE LINE MINIFIED JSON ONLY. Final character must be '}'.
+One single-line MINIFIED JSON string only. Do NOT include markdown fences.
+Final char must be '}'.
 `;
 }
 
-// --- Parser aman: ambil JSON valid dari text ---
+/* -------------------------------------------------
+   safeJsonParseMaybe
+   -------------------------------------------------
+   Ambil teks dari AI (kadang ada sampah),
+   coba potong sampai ketemu JSON valid.
+------------------------------------------------- */
 function safeJsonParseMaybe(text) {
   if (!text) throw new Error("Empty response from AI");
   let raw = String(text);
 
-  // buang code fence, kalau ada
+  // remove ```json ... ``` wrapper if any
   raw = raw
     .trim()
     .replace(/^```[a-zA-Z]*\n?/, "")
     .replace(/```$/, "");
 
-  // normalisasi smart quotes & nbsp
+  // normalize smart quotes & nbsp
   raw = raw
     .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
     .replace(/[\u2018\u2019\u201B]/g, "'")
     .replace(/\u00A0/g, " ");
 
-  // hapus CR/LF agar tidak memutus string JSON
+  // flatten newlines to avoid broken strings
   raw = raw.replace(/[\r\n]+/g, " ");
 
-  // ekstrak blok JSON terbesar yang balanced
+  // try to extract the biggest balanced {...}
   const extractLargestJson = (s) => {
     const start = s.indexOf("{");
     if (start === -1) return s;
-    let inStr = false,
-      esc = false,
-      depth = 0,
-      end = -1;
+    let inStr = false;
+    let esc = false;
+    let depth = 0;
+    let end = -1;
     for (let i = start; i < s.length; i++) {
       const ch = s[i];
       if (inStr) {
         if (!esc && ch === '"') inStr = false;
         esc = ch === "\\" ? !esc : false;
       } else {
-        if (ch === '"') inStr = true;
-        else if (ch === "{") depth++;
-        else if (ch === "}") {
+        if (ch === '"') {
+          inStr = true;
+        } else if (ch === "{") {
+          depth++;
+        } else if (ch === "}") {
           depth--;
           if (depth === 0) {
             end = i;
@@ -219,22 +238,20 @@ function safeJsonParseMaybe(text) {
   };
   raw = extractLargestJson(raw);
 
-  // bersihkan trailing comma
+  // remove dangling commas like ,}
   raw = raw.replace(/,\s*([}\]])/g, "$1");
 
-  // ganti undefined -> null
+  // convert undefined -> null
   raw = raw.replace(/:\s*undefined(\s*[,\}])/g, ": null$1");
 
-  // hapus komentar gaya JS (jaga-jaga)
+  // strip JS-style comments (just in case)
   raw = raw
     .replace(/\/\/[^\n\r]*[\n\r]?/g, "")
     .replace(/\/\*[\s\S]*?\*\//g, "");
 
-  // parse
   try {
     return JSON.parse(raw);
   } catch (e1) {
-    // fallback: pangkas ke brace terakhir
     const last = raw.lastIndexOf("}");
     if (last > 0) {
       const cand = raw.slice(0, last + 1).replace(/,\s*([}\]])/g, "$1");
@@ -244,6 +261,9 @@ function safeJsonParseMaybe(text) {
   }
 }
 
+/* -------------------------------------------------
+   CreateTrip component
+------------------------------------------------- */
 function CreateTrip() {
   const [place, setPlace] = useState(null);
   const [formData, setFormData] = useState({});
@@ -291,7 +311,7 @@ function CreateTrip() {
 
       const result = await chatSession.sendMessage(FINAL_PROMPT);
       const text = await result?.response?.text?.();
-      console.log("AI raw:", text?.slice?.(0, 500)); // debug aman
+      console.log("AI raw:", text?.slice?.(0, 500));
       await SaveAiTrip(text);
     } catch (e) {
       console.error(e);
@@ -361,9 +381,10 @@ function CreateTrip() {
       </p>
 
       <div className="mt-20 flex flex-col gap-10">
+        {/* destination */}
         <div>
           <h2 className="text-xl my-3 font-medium">
-            What is destination of choice?
+            What is your destination of choice?
           </h2>
           <LocationSelect
             value={place}
@@ -372,8 +393,12 @@ function CreateTrip() {
               handleInputChange("location", v);
             }}
           />
+          <p className="text-xs text-gray-400 mt-2">
+            Type at least 2 letters. We won't call external map APIs.
+          </p>
         </div>
 
+        {/* days */}
         <div>
           <h2 className="text-xl my-3 font-medium">
             How many days are you planning your trip?
@@ -388,8 +413,9 @@ function CreateTrip() {
           />
         </div>
 
+        {/* budget */}
         <div>
-          <h2 className="text-xl my-3 font-medium">What is Your Budget?</h2>
+          <h2 className="text-xl my-3 font-medium">What is your budget?</h2>
           <div className="grid grid-cols-3 gap-5 mt-5">
             {SelectBudgetOptions.map((item, index) => (
               <div
@@ -407,6 +433,7 @@ function CreateTrip() {
           </div>
         </div>
 
+        {/* traveler */}
         <div>
           <h2 className="text-xl my-3 font-medium">
             Who do you plan on traveling with on your next adventure?
@@ -429,6 +456,7 @@ function CreateTrip() {
         </div>
       </div>
 
+      {/* CTA */}
       <div className="my-10 justify-end flex">
         <Button disabled={loading} onClick={onGenerateTrip}>
           {loading ? (
@@ -439,9 +467,16 @@ function CreateTrip() {
         </Button>
       </div>
 
+      {/* Login Dialog */}
       <Dialog open={openDialog}>
         <DialogContent>
           <DialogHeader>
+            {/* Radix A11y wants a DialogTitle.
+               Kita kasih VisuallyHidden biar gak muncul di UI tapi gak warning. */}
+            <VisuallyHidden>
+              <h2>Sign in required</h2>
+            </VisuallyHidden>
+
             <DialogDescription>
               <img
                 src="/logo.svg"
@@ -450,9 +485,9 @@ function CreateTrip() {
                 className="items-center"
               />
               <h2 className="font-bold text-lg">
-                Sign In to check out your travel plan
+                Sign in to check out your travel plan
               </h2>
-              <p>Sign in to the App with Google authentication securely</p>
+              <p>Sign in to the app with Google authentication securely</p>
               <Button
                 onClick={login}
                 className="w-full mt-6 flex gap-4 items-center"
