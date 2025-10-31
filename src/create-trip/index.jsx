@@ -1,10 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import {
-  AI_PROMPT,
-  SelectBudgetOptions,
-  SelectTravelList,
-} from "@/constants/options";
+import { SelectBudgetOptions, SelectTravelList } from "@/constants/options";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { chatSession } from "@/service/AIModel";
@@ -27,34 +23,40 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 /* -------------------------------------------------
    LocationSelect
    -------------------------------------------------
-   Goal:
-   - In PROD (ankala.id): ONLY call /api/osm/search (must be proxied by your backend/server/nginx).
-     If that returns non-JSON (like your <!DOCTYPE ...> now), we just return [] silently.
-     -> no direct call ke nominatim (biar ga CORS error merah).
-   - In DEV (localhost etc.): call nominatim directly (no proxy).
+   - Frontend hanya call endpoint lokal /api/osm-search?q=...
+   - Jadi browser TIDAK langsung call nominatim.org (hindari CORS).
+   - Kalau /api/osm-search belum proper (misal balikin HTML, bukan JSON),
+     kita catch & return [] biar gak meledak.
 */
 function LocationSelect({ value, onChange }) {
-  // fetch lokasi, tapi lewat serverless vercel kita sendiri
   const search = async (query) => {
     if (!query || query.trim().length < 2) return [];
 
     try {
-      // NOTE: relative URL => akan hit ke ankala.id/api/... di prod,
-      // dan ke localhost:5173/api/... di dev (kalau kamu pakai vercel dev / proxy)
       const resp = await fetch(
-        `/api/osm-search?` +
+        "/api/osm-search?" +
           new URLSearchParams({
             q: query,
-          }).toString()
+          }).toString(),
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
       );
 
-      if (!resp.ok) {
-        console.warn("[osm-search FE] status", resp.status);
+      // Ambil raw text dulu, karena kadang proxy kamu masih balikin HTML
+      const text = await resp.text();
+
+      let data = [];
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.warn("[OSM proxy] Not JSON yet (probably not wired).");
         return [];
       }
 
-      const data = await resp.json();
-
+      // Map ke format react-select
       return (data || []).map((item) => ({
         label: item.display_name,
         value: {
@@ -72,8 +74,8 @@ function LocationSelect({ value, onChange }) {
     }
   };
 
-  // debounce untuk react-select/async
-  const loadOptions = React.useMemo(() => {
+  // Debounce loader untuk AsyncSelect
+  const loadOptions = useMemo(() => {
     let timeout;
     return (inputValue, callback) => {
       clearTimeout(timeout);
@@ -97,128 +99,8 @@ function LocationSelect({ value, onChange }) {
   );
 }
 
-
-  const fetchViaProxy = async (params) => {
-    const url = `/api/osm/search?${params.toString()}`;
-    const resp = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-
-    // proxy kamu sekarang balikin HTML -> resp.json() bakal throw.
-    // Jadi kita guard manual:
-    const text = await resp.text();
-    try {
-      const json = JSON.parse(text);
-      return json;
-    } catch {
-      console.warn("[OSM proxy] Not JSON yet (probably not wired).");
-      return [];
-    }
-  };
-
-  const fetchDirectNominatim = async (params) => {
-    const resp = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-      {
-        headers: {
-          "User-Agent": "AnkalaTripPlanner/1.0 (ankala.id)",
-          "Accept-Language": navigator.language || "en",
-        },
-      }
-    );
-    // kalau CORS block di prod, ini akan throw sebelum resp.ok.
-    const data = await resp.json();
-    return data;
-  };
-
-  const searchCore = async (query) => {
-    if (!query || query.trim().length < 2) return [];
-
-    const params = new URLSearchParams({
-      q: query,
-      format: "json",
-      addressdetails: "1",
-      limit: "8",
-      extratags: "0",
-    });
-
-    // PROD path: proxy only
-    if (isProdHost) {
-      const data = await fetchViaProxy(params);
-      return (data || []).map((item) => ({
-        label: item.display_name,
-        value: {
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          osm_id: item.osm_id,
-          osm_type: item.osm_type,
-          boundingbox: item.boundingbox,
-          raw: item,
-        },
-      }));
-    }
-
-    // DEV path: try direct first (easier local dev)
-    try {
-      const data = await fetchDirectNominatim(params);
-      return (data || []).map((item) => ({
-        label: item.display_name,
-        value: {
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          osm_id: item.osm_id,
-          osm_type: item.osm_type,
-          boundingbox: item.boundingbox,
-          raw: item,
-        },
-      }));
-    } catch (errDirect) {
-      console.warn("[OSM direct fail - dev]", errDirect?.message || errDirect);
-      // optional: fallback proxy in dev if you set one locally
-      const data = await fetchViaProxy(params);
-      return (data || []).map((item) => ({
-        label: item.display_name,
-        value: {
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          osm_id: item.osm_id,
-          osm_type: item.osm_type,
-          boundingbox: item.boundingbox,
-          raw: item,
-        },
-      }));
-    }
-  };
-
-  // debounce loader for AsyncSelect
-  const loadOptions = useMemo(() => {
-    let timeout;
-    return (inputValue, callback) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(async () => {
-        const results = await searchCore(inputValue);
-        callback(results);
-      }, 350);
-    };
-  }, []);
-
-  return (
-    <AsyncSelect
-      cacheOptions
-      defaultOptions={false}
-      loadOptions={loadOptions}
-      placeholder="Search destination"
-      value={value}
-      onChange={onChange}
-      classNamePrefix="osm-select"
-    />
-  );
-}
-
 /* -------------------------------------------------
-   Prompt builder
+   Prompt builder (itinerary + tips + low impact)
    ------------------------------------------------- */
 function buildPrompt({ location, noOfDays, traveler, budget }) {
   const locLabel = location?.label || "";
@@ -246,10 +128,13 @@ Hard rules:
 - Group places in same area to reduce travel time.
 - Include meal_suggestion, plan_b, rain_alternative for each block.
 - Include realistic est_daily_spend_usd and short rationale per day.
-- Give hotel_suggestions (3-5 hotels): name, address, lat, lon, price_per_night_usd (number), rating (0-5), why_pick (<=120 chars).
+- Give hotel_suggestions (3-5 hotels): name, address, lat, lon,
+  price_per_night_usd (number), rating (0-5), why_pick (<=120 chars).
 - currency is always "USD".
-- Also include "tips_general": array of short practical advice strings (safety, scams, culture, opening hours).
-- Also include "tips_low_impact": array of climate-aware / low-carbon / low-waste travel suggestions (<=100 chars each, friendly tone).
+- Also include "tips_general": array of short practical advice strings
+  (safety, scams, culture, opening hours).
+- Also include "tips_low_impact": array of climate-aware / low-carbon /
+  low-waste travel suggestions (<=100 chars each, friendly tone).
 
 Schema shape:
 {
@@ -440,6 +325,7 @@ function CreateTrip() {
       const result = await chatSession.sendMessage(FINAL_PROMPT);
       const text = await result?.response?.text?.();
       console.log("AI raw:", text?.slice?.(0, 500));
+
       await SaveAiTrip(text);
     } catch (e) {
       console.error(e);
@@ -598,7 +484,7 @@ function CreateTrip() {
       <Dialog open={openDialog}>
         <DialogContent>
           <DialogHeader>
-            {/* Radix a11y requirement */}
+            {/* Radix a11y requirement: give DialogContent a title, tapi visually hidden */}
             <VisuallyHidden asChild>
               <h2>Sign In Required</h2>
             </VisuallyHidden>
