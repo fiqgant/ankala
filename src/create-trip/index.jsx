@@ -34,14 +34,69 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
    - In DEV (localhost etc.): call nominatim directly (no proxy).
 */
 function LocationSelect({ value, onChange }) {
-  // simple env check
-  const isProdHost = (() => {
+  // fetch lokasi, tapi lewat serverless vercel kita sendiri
+  const search = async (query) => {
+    if (!query || query.trim().length < 2) return [];
+
     try {
-      return window?.location?.hostname === "ankala.id";
-    } catch {
-      return false;
+      // NOTE: relative URL => akan hit ke ankala.id/api/... di prod,
+      // dan ke localhost:5173/api/... di dev (kalau kamu pakai vercel dev / proxy)
+      const resp = await fetch(
+        `/api/osm-search?` +
+          new URLSearchParams({
+            q: query,
+          }).toString()
+      );
+
+      if (!resp.ok) {
+        console.warn("[osm-search FE] status", resp.status);
+        return [];
+      }
+
+      const data = await resp.json();
+
+      return (data || []).map((item) => ({
+        label: item.display_name,
+        value: {
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          osm_id: item.osm_id,
+          osm_type: item.osm_type,
+          boundingbox: item.boundingbox,
+          raw: item,
+        },
+      }));
+    } catch (err) {
+      console.warn("[osm-search FE error]", err);
+      return [];
     }
-  })();
+  };
+
+  // debounce untuk react-select/async
+  const loadOptions = React.useMemo(() => {
+    let timeout;
+    return (inputValue, callback) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(async () => {
+        const results = await search(inputValue);
+        callback(results);
+      }, 350);
+    };
+  }, []);
+
+  return (
+    <AsyncSelect
+      cacheOptions
+      defaultOptions={false}
+      loadOptions={loadOptions}
+      placeholder="Search destination"
+      value={value}
+      onChange={onChange}
+      classNamePrefix="osm-select"
+    />
+  );
+}
+
 
   const fetchViaProxy = async (params) => {
     const url = `/api/osm/search?${params.toString()}`;
