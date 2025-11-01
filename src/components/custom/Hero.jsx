@@ -1,8 +1,36 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Link } from "react-router-dom";
 
 function Hero() {
+  const videoRef = useRef(null);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && isVideoLoaded) {
+            video.play().catch(() => {
+              // Auto-play prevented, user will need to click
+            });
+          } else {
+            video.pause();
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(video);
+
+    return () => {
+      observer.unobserve(video);
+    };
+  }, [isVideoLoaded]);
   const socials = [
     {
       name: "Instagram",
@@ -55,33 +83,64 @@ function Hero() {
   ];
 
   return (
-    <div className="flex flex-col items-center mx-8 md:mx-56 gap-9 text-center">
-      <h1 className="font-extrabold text-[40px] md:text-[50px] leading-tight mt-10">
-        <span className="text-[#f56551]">Craft Meaningful Journeys</span> <br />
-        with Personalized Travel Itineraries
-      </h1>
+    <div className="relative flex flex-col items-center mx-8 md:mx-56 gap-12 text-center overflow-hidden">
+      {/* Background gradient decoration */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-gradient-to-b from-[#f56551]/10 via-transparent to-transparent blur-3xl -z-10"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-96 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5 blur-3xl -z-10"></div>
 
-      <p className="text-xl text-gray-600 max-w-3xl">
-        Ankala Journey helps you explore the world authentically with curated,
-        sustainable travel plans tailored to your style, pace, and purpose.
-      </p>
+      {/* Animated heading */}
+      <div className="mt-10 space-y-6 animate-fade-in-up">
+        <h1 className="font-extrabold text-[40px] md:text-[60px] lg:text-[72px] leading-tight">
+          <span className="block bg-gradient-to-r from-[#f56551] via-[#ff7a66] to-[#f56551] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
+            Craft Meaningful Journeys
+          </span>
+          <span className="block mt-2 text-gray-900">
+            with Personalized Travel Itineraries
+          </span>
+        </h1>
 
-      <Link to={"/create-trip"}>
-        <Button className="px-8 py-6 text-lg rounded-full">
-          Start Planning — It's Free
-        </Button>
-      </Link>
+        <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          Ankala Journey helps you explore the world authentically with curated,
+          sustainable travel plans tailored to your style, pace, and purpose.
+        </p>
+      </div>
+
+      {/* CTA Button with animation */}
+      <div className="animate-fade-in-up animation-delay-200">
+        <Link to={"/create-trip"}>
+          <Button className="group relative px-10 py-7 text-lg rounded-full bg-gradient-to-r from-[#f56551] to-[#ff7a66] hover:from-[#ff7a66] hover:to-[#f56551] text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 font-semibold overflow-hidden">
+            <span className="relative z-10 flex items-center gap-2">
+              Start Planning — It's Free
+              <svg
+                className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </span>
+            <span className="absolute inset-0 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+          </Button>
+        </Link>
+      </div>
 
       {/* Social icons */}
-      <div className="flex items-center gap-5 mt-2">
-        {socials.map((s) => (
+      <div className="flex items-center gap-5 mt-2 animate-fade-in-up animation-delay-400">
+        {socials.map((s, index) => (
           <a
             key={s.name}
             href={s.href}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={s.name}
-            className="group relative inline-flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f56551]"
+            className="group relative inline-flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f56551] animate-bounce-in"
+            style={{ animationDelay: `${index * 100}ms` }}
           >
             {/* outer glow effect */}
             <span className={`absolute inset-0 rounded-full bg-gradient-to-br ${s.gradient} opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300`}></span>
@@ -123,16 +182,40 @@ function Hero() {
         ))}
       </div>
 
-      <div className="w-[90%] max-w-[750px] rounded-lg overflow-hidden shadow-2xl">
-        <video
-          src="/video.MP4"
-          poster="/landing.png"
-          controls
-          className="w-full h-auto"
-          preload="metadata"
-        >
-          Your browser does not support the video tag.
-        </video>
+      {/* Video section with enhanced styling */}
+      <div className="w-[90%] max-w-[850px] animate-fade-in-up animation-delay-600 relative group">
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_20px_60px_rgba(245,101,81,0.3)]">
+          {/* Gradient overlay on hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none"></div>
+          
+          {/* Video with enhanced styling */}
+          <video
+            ref={videoRef}
+            src="/video.MP4"
+            poster="/landing.png"
+            controls
+            muted
+            loop
+            playsInline
+            className="w-full h-auto rounded-2xl"
+            preload="metadata"
+            onLoadedData={() => setIsVideoLoaded(true)}
+            onMouseEnter={(e) => {
+              if (e.target.paused) {
+                e.target.play().catch(() => {});
+              }
+            }}
+          >
+            Your browser does not support the video tag.
+          </video>
+
+          {/* Decorative border gradient */}
+          <div className="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-[#f56551]/20 via-purple-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -z-10 blur-sm"></div>
+        </div>
+        
+        {/* Floating decorative elements */}
+        <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-[#f56551]/20 to-purple-500/20 rounded-full blur-2xl opacity-50 animate-float"></div>
+        <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-gradient-to-tr from-blue-500/20 to-pink-500/20 rounded-full blur-2xl opacity-50 animate-float-delayed"></div>
       </div>
     </div>
   );
