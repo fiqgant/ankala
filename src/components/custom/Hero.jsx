@@ -83,36 +83,47 @@ function Hero() {
   ];
 
   return (
-    <div className="relative flex flex-col items-center mx-8 md:mx-56 gap-12 text-center overflow-hidden">
-      {/* Background gradient decoration */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-gradient-to-b from-[#f56551]/10 via-transparent to-transparent blur-3xl -z-10"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-96 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5 blur-3xl -z-10"></div>
+    <div className="relative flex flex-col items-center mx-8 md:mx-56 gap-12 text-center overflow-hidden py-12">
+      {/* Enhanced Background gradient decoration with green theme */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[500px] bg-gradient-to-b from-emerald-400/20 via-teal-300/10 to-transparent blur-3xl -z-10 animate-pulse-slow"></div>
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-gradient-to-r from-green-400/10 via-emerald-500/10 to-teal-400/10 blur-3xl -z-10"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-emerald-300/15 to-green-400/10 blur-3xl -z-10 rounded-full"></div>
 
-      {/* Animated heading */}
+      {/* Animated particles/leaves decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-20 left-10 w-16 h-16 bg-green-400/20 rounded-full blur-xl animate-float-slow"></div>
+        <div className="absolute top-40 right-20 w-12 h-12 bg-emerald-300/30 rounded-full blur-lg animate-float-delayed"></div>
+        <div className="absolute bottom-32 left-1/4 w-20 h-20 bg-teal-400/20 rounded-full blur-2xl animate-float"></div>
+      </div>
+
+      {/* Animated heading with enhanced green gradient */}
       <div className="mt-10 space-y-6 animate-fade-in-up">
-        <h1 className="font-extrabold text-[40px] md:text-[60px] lg:text-[72px] leading-tight">
-          <span className="block bg-gradient-to-r from-[#f56551] via-[#ff7a66] to-[#f56551] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
-            Craft Meaningful Journeys
+        <h1 className="font-extrabold text-[40px] md:text-[60px] lg:text-[80px] leading-tight tracking-tight">
+          <span className="block bg-gradient-to-r from-emerald-600 via-green-500 to-teal-600 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-sm">
+            Craft Meaningful
           </span>
-          <span className="block mt-2 text-gray-900">
+          <span className="block mt-2 bg-gradient-to-r from-teal-600 via-emerald-500 to-green-600 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-sm">
+            Journeys
+          </span>
+          <span className="block mt-4 text-[28px] md:text-[36px] lg:text-[42px] text-gray-800 font-bold">
             with Personalized Travel Itineraries
           </span>
         </h1>
 
-        <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-lg md:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed font-medium">
           Ankala Journey helps you explore the world authentically with curated,
           sustainable travel plans tailored to your style, pace, and purpose.
         </p>
       </div>
 
-      {/* CTA Button with animation */}
-      <div className="animate-fade-in-up animation-delay-200">
+      {/* Enhanced CTA Button with green gradient and more effects */}
+      <div className="animate-fade-in-up animation-delay-200 relative">
         <Link to={"/create-trip"}>
-          <Button className="group relative px-10 py-7 text-lg rounded-full bg-gradient-to-r from-[#f56551] to-[#ff7a66] hover:from-[#ff7a66] hover:to-[#f56551] text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 font-semibold overflow-hidden">
-            <span className="relative z-10 flex items-center gap-2">
+          <Button className="group relative px-12 py-8 text-lg md:text-xl rounded-full bg-gradient-to-r from-emerald-600 via-green-500 to-teal-600 hover:from-teal-600 hover:via-green-500 hover:to-emerald-600 text-white shadow-2xl hover:shadow-[0_25px_60px_rgba(16,185,129,0.4)] hover:scale-110 transition-all duration-500 font-bold overflow-hidden border-2 border-emerald-400/30">
+            <span className="relative z-10 flex items-center gap-3">
               Start Planning — It's Free
               <svg
-                className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300"
+                className="w-6 h-6 transform group-hover:translate-x-2 group-hover:scale-110 transition-all duration-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -120,18 +131,25 @@ function Hero() {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   d="M13 7l5 5m0 0l-5 5m5-5H6"
                 />
               </svg>
             </span>
-            <span className="absolute inset-0 bg-white/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+            {/* Animated shimmer effect */}
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
+            {/* Glow effect */}
+            <span className="absolute inset-0 bg-emerald-400/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
           </Button>
         </Link>
+        {/* Floating badge */}
+        <div className="absolute -top-3 -right-3 bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-bounce-subtle z-20">
+          ✨ Free Forever
+        </div>
       </div>
 
-      {/* Social icons */}
-      <div className="flex items-center gap-5 mt-2 animate-fade-in-up animation-delay-400">
+      {/* Social icons with green accent */}
+      <div className="flex items-center gap-5 mt-4 animate-fade-in-up animation-delay-400">
         {socials.map((s, index) => (
           <a
             key={s.name}
@@ -139,7 +157,7 @@ function Hero() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={s.name}
-            className="group relative inline-flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f56551] animate-bounce-in"
+            className="group relative inline-flex h-16 w-16 items-center justify-center rounded-full transition-all duration-300 hover:scale-125 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 animate-bounce-in hover:ring-2 hover:ring-emerald-400/50"
             style={{ animationDelay: `${index * 100}ms` }}
           >
             {/* outer glow effect */}
@@ -182,11 +200,14 @@ function Hero() {
         ))}
       </div>
 
-      {/* Video section with enhanced styling */}
-      <div className="w-[90%] max-w-[850px] animate-fade-in-up animation-delay-600 relative group">
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_20px_60px_rgba(245,101,81,0.3)]">
-          {/* Gradient overlay on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none"></div>
+      {/* Video section with enhanced green-themed styling */}
+      <div className="w-[90%] max-w-[900px] animate-fade-in-up animation-delay-600 relative group mt-8">
+        <div className="relative rounded-3xl overflow-hidden shadow-2xl transform transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_30px_80px_rgba(16,185,129,0.4)] border-4 border-emerald-500/20 hover:border-emerald-400/40">
+          {/* Gradient overlay on hover with green tint */}
+          <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/30 via-transparent to-green-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"></div>
+          
+          {/* Animated border glow */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-400 via-green-400 to-teal-400 rounded-3xl opacity-0 group-hover:opacity-75 blur-xl transition-opacity duration-500 -z-10 animate-pulse-slow"></div>
           
           {/* Video with enhanced styling */}
           <video
@@ -197,7 +218,7 @@ function Hero() {
             muted
             loop
             playsInline
-            className="w-full h-auto rounded-2xl"
+            className="w-full h-auto rounded-3xl relative z-0"
             preload="metadata"
             onLoadedData={() => setIsVideoLoaded(true)}
             onMouseEnter={(e) => {
@@ -209,13 +230,28 @@ function Hero() {
             Your browser does not support the video tag.
           </video>
 
-          {/* Decorative border gradient */}
-          <div className="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-[#f56551]/20 via-purple-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -z-10 blur-sm"></div>
+          {/* Decorative border gradient with green theme */}
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-emerald-500/30 via-green-400/30 to-teal-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0 blur-md"></div>
+          
+          {/* Play icon overlay on hover */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
+            <div className="bg-emerald-500/80 backdrop-blur-sm rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          </div>
         </div>
         
-        {/* Floating decorative elements */}
-        <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-[#f56551]/20 to-purple-500/20 rounded-full blur-2xl opacity-50 animate-float"></div>
-        <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-gradient-to-tr from-blue-500/20 to-pink-500/20 rounded-full blur-2xl opacity-50 animate-float-delayed"></div>
+        {/* Enhanced floating decorative elements with green theme */}
+        <div className="absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br from-emerald-400/30 to-green-500/20 rounded-full blur-2xl opacity-60 animate-float z-0"></div>
+        <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-gradient-to-tr from-teal-400/30 to-emerald-500/20 rounded-full blur-3xl opacity-60 animate-float-delayed z-0"></div>
+        <div className="absolute top-1/2 -left-8 w-20 h-20 bg-gradient-to-r from-green-400/25 to-emerald-400/25 rounded-full blur-xl opacity-50 animate-float-slow z-0"></div>
+        
+        {/* Video corner badges */}
+        <div className="absolute top-4 left-4 bg-gradient-to-r from-emerald-600 to-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-30 backdrop-blur-sm bg-opacity-90">
+          🎬 Watch Demo
+        </div>
       </div>
     </div>
   );
