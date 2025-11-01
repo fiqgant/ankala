@@ -10,6 +10,9 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "./components/ui/sonner.jsx";
 import Header from "./components/custom/Header.jsx";
 
+// Console log attribution
+console.log("This website was made by WBIIC");
+
 // Router Setup
 const router = createBrowserRouter([
   {
