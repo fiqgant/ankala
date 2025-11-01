@@ -1,10 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="32" height="32" viewBox="0 0 32 32">
   <!-- Bulatan putih besar di belakang -->
-  <circle cx="16" cy="16" r="15" fill="white"/>
+  <circle cx="16" cy="16" r="15.5" fill="white"/>
   
-  <!-- Logo PNG di atas bulatan putih -->
-  <image href="https://raw.githubusercontent.com/fiqgant/ankala/refs/heads/main/public/logo.png" 
-         x="2" y="2" 
-         width="28" height="28" 
+  <!-- Clip path untuk membuat logo bulat -->
+  <defs>
+    <clipPath id="circleClip">
+      <circle cx="16" cy="16" r="14"/>
+    </clipPath>
+  </defs>
+  
+  <!-- Logo PNG di atas bulatan putih - menggunakan path relatif lokal -->
+  <image href="/logo.png" 
+         x="2" 
+         y="2" 
+         width="28" 
+         height="28" 
+         clip-path="url(#circleClip)"
          preserveAspectRatio="xMidYMid meet"/>
 </svg>
