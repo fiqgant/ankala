@@ -123,11 +123,17 @@ function Hero() {
         ))}
       </div>
 
-      <img
-        src="/landing.png"
-        alt="Hero banner artwork for Ankala Journey"
-        className="w-[90%] max-w-[750px]"
-      />
+      <div className="w-[90%] max-w-[750px] rounded-lg overflow-hidden shadow-2xl">
+        <video
+          src="/video.MP4"
+          poster="/landing.png"
+          controls
+          className="w-full h-auto"
+          preload="metadata"
+        >
+          Your browser does not support the video tag.
+        </video>
+      </div>
     </div>
   );
 }
