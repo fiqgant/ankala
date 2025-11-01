@@ -11,7 +11,9 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { FcGoogle } from "react-icons/fc";
 import axios from "axios";
 
@@ -100,6 +102,9 @@ function Header() {
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent>
           <DialogHeader>
+            <VisuallyHidden>
+              <DialogTitle>Welcome to Ankala Journey</DialogTitle>
+            </VisuallyHidden>
             <DialogDescription className="text-center">
               <img
                 src="/logo.svg"

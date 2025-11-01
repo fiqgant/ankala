@@ -13,10 +13,10 @@ function LoginDialog({ open, onLogin }) {
   return (
     <Dialog open={open}>
       <DialogContent>
-        <VisuallyHidden>
-          <DialogTitle>Sign In Required</DialogTitle>
-        </VisuallyHidden>
         <DialogHeader>
+          <VisuallyHidden>
+            <DialogTitle>Sign In Required</DialogTitle>
+          </VisuallyHidden>
           <DialogDescription>
             <img
               src="/logo.svg"
