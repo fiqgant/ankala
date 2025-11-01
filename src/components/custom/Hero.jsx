@@ -83,74 +83,76 @@ function Hero() {
   ];
 
   return (
-    <div className="relative flex flex-col items-center mx-8 md:mx-56 gap-12 text-center overflow-hidden py-12">
-      {/* Enhanced Background gradient decoration with green theme */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[500px] bg-gradient-to-b from-[#2a4634]/20 via-[#356049]/10 to-transparent blur-3xl -z-10 animate-pulse-slow"></div>
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-gradient-to-r from-[#2a4634]/12 via-[#356049]/10 to-[#1e3124]/10 blur-3xl -z-10"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-[#356049]/15 to-[#1e3124]/10 blur-3xl -z-10 rounded-full"></div>
+    <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden py-12">
+      {/* Full-width background gradients */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120vw] max-w-none h-[520px] bg-gradient-to-b from-[#2a4634]/20 via-[#356049]/10 to-transparent blur-3xl animate-pulse-slow"></div>
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[110vw] max-w-none h-96 bg-gradient-to-r from-[#2a4634]/12 via-[#356049]/10 to-[#1e3124]/10 blur-3xl"></div>
+        <div className="absolute bottom-[-80px] left-1/2 -translate-x-1/2 w-[140vw] max-w-none h-[420px] bg-gradient-to-tl from-[#356049]/15 to-[#1e3124]/10 blur-3xl"></div>
 
-      {/* Animated particles/leaves decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-20 left-10 w-16 h-16 bg-[#3e7456]/20 rounded-full blur-xl animate-float-slow"></div>
-        <div className="absolute top-40 right-20 w-12 h-12 bg-[#356049]/30 rounded-full blur-lg animate-float-delayed"></div>
-        <div className="absolute bottom-32 left-1/4 w-20 h-20 bg-[#2a4634]/15 rounded-full blur-2xl animate-float"></div>
-      </div>
-
-      {/* Animated heading with enhanced green gradient */}
-      <div className="mt-10 space-y-6 animate-fade-in-up">
-        <h1 className="font-extrabold text-[40px] md:text-[60px] lg:text-[80px] leading-tight tracking-tight">
-          <span className="block bg-gradient-to-r from-[#2a4634] via-[#3e7456] to-[#2a4634] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-sm">
-            Craft Meaningful
-          </span>
-          <span className="block mt-2 bg-gradient-to-r from-[#1e3124] via-[#2a4634] to-[#3e7456] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-sm">
-            Journeys
-          </span>
-          <span className="block mt-4 text-[28px] md:text-[36px] lg:text-[42px] text-gray-800 font-bold">
-            with Personalized Travel Itineraries
-          </span>
-        </h1>
-
-        <p className="text-lg md:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed font-medium">
-          Ankala Journey helps you explore the world authentically with curated,
-          sustainable travel plans tailored to your style, pace, and purpose.
-        </p>
-      </div>
-
-      {/* Enhanced CTA Button with green gradient and more effects */}
-      <div className="animate-fade-in-up animation-delay-200 relative">
-        <Link to={"/create-trip"}>
-          <Button className="group relative px-12 py-8 text-lg md:text-xl rounded-full bg-gradient-to-r from-[#1e3124] via-[#2a4634] to-[#3e7456] hover:from-[#2a4634] hover:via-[#3e7456] hover:to-[#2a4634] text-white shadow-2xl hover:shadow-[0_25px_60px_rgba(42,70,52,0.4)] hover:scale-110 transition-all duration-500 font-bold overflow-hidden border-2 border-[#2a4634]/30">
-            <span className="relative z-10 flex items-center gap-3">
-              Start Planning — It's Free
-              <svg
-                className="w-6 h-6 transform group-hover:translate-x-2 group-hover:scale-110 transition-all duration-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-            </span>
-            {/* Animated shimmer effect */}
-            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
-            {/* Glow effect */}
-            <span className="absolute inset-0 bg-[#2a4634]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
-          </Button>
-        </Link>
-        {/* Floating badge */}
-        <div className="absolute -top-3 -right-3 bg-gradient-to-r from-[#3e7456] to-[#2a4634] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-bounce-subtle z-20">
-          ✨ Free Forever
+        {/* Animated particles/leaves decoration */}
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[130vw] overflow-visible">
+          <div className="absolute top-20 left-[8%] w-24 h-24 bg-[#3e7456]/20 rounded-full blur-xl animate-float-slow"></div>
+          <div className="absolute top-40 right-[12%] w-16 h-16 bg-[#356049]/30 rounded-full blur-lg animate-float-delayed"></div>
+          <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-[#2a4634]/15 rounded-full blur-2xl animate-float"></div>
         </div>
       </div>
 
+      <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 md:px-20 text-center">
+        {/* Animated heading with enhanced green gradient */}
+        <div className="mt-10 space-y-6 animate-fade-in-up">
+          <h1 className="font-extrabold text-[40px] md:text-[60px] lg:text-[80px] leading-tight tracking-tight">
+            <span className="block bg-gradient-to-r from-[#2a4634] via-[#3e7456] to-[#2a4634] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-sm">
+              Craft Meaningful
+            </span>
+            <span className="block mt-2 bg-gradient-to-r from-[#1e3124] via-[#2a4634] to-[#3e7456] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-sm">
+              Journeys
+            </span>
+            <span className="block mt-4 text-[28px] md:text-[36px] lg:text-[42px] text-gray-800 font-bold">
+              with Personalized Travel Itineraries
+            </span>
+          </h1>
 
-      {/* Video section with enhanced green-themed styling */}
-      <div className="w-[90%] max-w-[900px] animate-fade-in-up animation-delay-600 relative group mt-8">
+          <p className="text-lg md:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed font-medium">
+            Ankala Journey helps you explore the world authentically with curated,
+            sustainable travel plans tailored to your style, pace, and purpose.
+          </p>
+        </div>
+
+        {/* Enhanced CTA Button with green gradient and more effects */}
+        <div className="animate-fade-in-up animation-delay-200 relative">
+          <Link to={"/create-trip"}>
+            <Button className="group relative px-12 py-8 text-lg md:text-xl rounded-full bg-gradient-to-r from-[#1e3124] via-[#2a4634] to-[#3e7456] hover:from-[#2a4634] hover:via-[#3e7456] hover:to-[#2a4634] text-white shadow-2xl hover:shadow-[0_25px_60px_rgba(42,70,52,0.4)] hover:scale-110 transition-all duration-500 font-bold overflow-hidden border-2 border-[#2a4634]/30">
+              <span className="relative z-10 flex items-center gap-3">
+                Start Planning — It's Free
+                <svg
+                  className="w-6 h-6 transform group-hover:translate-x-2 group-hover:scale-110 transition-all duration-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </span>
+              {/* Animated shimmer effect */}
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
+              {/* Glow effect */}
+              <span className="absolute inset-0 bg-[#2a4634]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
+            </Button>
+          </Link>
+          {/* Floating badge */}
+          <div className="absolute -top-3 -right-3 bg-gradient-to-r from-[#3e7456] to-[#2a4634] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-bounce-subtle z-20">
+            ✨ Free Forever
+          </div>
+        </div>
+
+        {/* Video section with enhanced green-themed styling */}
+        <div className="w-[90%] max-w-[900px] animate-fade-in-up animation-delay-600 relative group mt-8">
         <div className="relative rounded-3xl overflow-hidden shadow-2xl transform transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_30px_80px_rgba(42,70,52,0.4)] border-4 border-[#2a4634]/20 hover:border-[#2a4634]/40">
           {/* Gradient overlay on hover with green tint */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#1e3124]/30 via-transparent to-[#3e7456]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"></div>
@@ -258,6 +260,7 @@ function Hero() {
         ))}
       </div>
     </div>
+  </div>
   );
 }
 
