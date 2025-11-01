@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { FcGoogle } from "react-icons/fc";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -15,7 +16,7 @@ function LoginDialog({ open, onLogin }) {
         <DialogHeader>
           {/* Radix a11y requirement: give DialogContent a title, tapi visually hidden */}
           <VisuallyHidden asChild>
-            <h2>Sign In Required</h2>
+            <DialogTitle>Sign In Required</DialogTitle>
           </VisuallyHidden>
 
           <DialogDescription>
