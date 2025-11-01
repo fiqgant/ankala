@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 3000 3000">
+  <!-- Background transparan -->
+  <rect width="3000" height="3000" fill="transparent"/>
+  
+  <!-- Logo shape putih berdasarkan logo original -->
+  <g fill="white" stroke="white" stroke-width="40">
+    <!-- Outer circle utama -->
+    <circle cx="1521.82" cy="1577.37" r="566.29" fill="white"/>
+    
+    <!-- Inner circle untuk detail -->
+    <circle cx="1656.35" cy="1557.27" r="270" fill="none" stroke="white" stroke-width="80"/>
+    
+    <!-- Pattern lines putih -->
+    <path d="M 1259.57 1320.44 L 2053.14 1794.1" stroke="white" stroke-width="120" stroke-linecap="round"/>
+    <path d="M 1893.19 1160.48 L 1419.52 1954.05" stroke="white" stroke-width="120" stroke-linecap="round"/>
+    
+    <!-- Decorative elements putih -->
+    <circle cx="1521.82" cy="1577.37" r="200" fill="white" opacity="0.8"/>
+  </g>
+</svg>
