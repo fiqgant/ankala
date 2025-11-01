@@ -13,12 +13,10 @@ function LoginDialog({ open, onLogin }) {
   return (
     <Dialog open={open}>
       <DialogContent>
+        <VisuallyHidden>
+          <DialogTitle>Sign In Required</DialogTitle>
+        </VisuallyHidden>
         <DialogHeader>
-          {/* Radix a11y requirement: give DialogContent a title, tapi visually hidden */}
-          <VisuallyHidden asChild>
-            <DialogTitle>Sign In Required</DialogTitle>
-          </VisuallyHidden>
-
           <DialogDescription>
             <img
               src="/logo.svg"
