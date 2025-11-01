@@ -249,7 +249,7 @@ function Hero() {
         
         {/* Video corner badges */}
         <div className="absolute top-4 left-4 bg-gradient-to-r from-[#1e3124] to-[#3e7456] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-30 backdrop-blur-sm bg-opacity-90">
-          🎬 Watch Demo
+          🎬 Ankala Goes to Pulo Sibandang
         </div>
       </div>
     </div>
