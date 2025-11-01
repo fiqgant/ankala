@@ -1,278 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { SelectBudgetOptions, SelectTravelList } from "@/constants/options";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { chatSession } from "@/service/AIModel";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-} from "@/components/ui/dialog";
-import { FcGoogle } from "react-icons/fc";
-import { useGoogleLogin } from "@react-oauth/google";
-import axios from "axios";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/service/firebaseConfig";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
-import AsyncSelect from "react-select/async";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-
-/* -------------------------------------------------
-   LocationSelect
-   -------------------------------------------------
-   - Frontend hanya call endpoint lokal /api/osm-search?q=...
-   - Jadi browser TIDAK langsung call nominatim.org (hindari CORS).
-   - Kalau /api/osm-search belum proper (misal balikin HTML, bukan JSON),
-     kita catch & return [] biar gak meledak.
-*/
-function LocationSelect({ value, onChange }) {
-  const search = async (query) => {
-    if (!query || query.trim().length < 2) return [];
-
-    try {
-      const resp = await fetch(
-        "/api/osm-search?" +
-          new URLSearchParams({
-            q: query,
-          }).toString(),
-        {
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
-
-      // Ambil raw text dulu, karena kadang proxy kamu masih balikin HTML
-      const text = await resp.text();
-
-      let data = [];
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.warn("[OSM proxy] Not JSON yet (probably not wired).");
-        return [];
-      }
-
-      // Map ke format react-select
-      return (data || []).map((item) => ({
-        label: item.display_name,
-        value: {
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          osm_id: item.osm_id,
-          osm_type: item.osm_type,
-          boundingbox: item.boundingbox,
-          raw: item,
-        },
-      }));
-    } catch (err) {
-      console.warn("[osm-search FE error]", err);
-      return [];
-    }
-  };
-
-  // Debounce loader untuk AsyncSelect
-  const loadOptions = useMemo(() => {
-    let timeout;
-    return (inputValue, callback) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(async () => {
-        const results = await search(inputValue);
-        callback(results);
-      }, 350);
-    };
-  }, []);
-
-  return (
-    <AsyncSelect
-      cacheOptions
-      defaultOptions={false}
-      loadOptions={loadOptions}
-      placeholder="Search destination"
-      value={value}
-      onChange={onChange}
-      classNamePrefix="osm-select"
-    />
-  );
-}
-
-/* -------------------------------------------------
-   Prompt builder (itinerary + tips + low impact)
-   ------------------------------------------------- */
-function buildPrompt({ location, noOfDays, traveler, budget }) {
-  const locLabel = location?.label || "";
-  const days = Number(noOfDays) || 3;
-  const pax = traveler || "solo traveler";
-  const mBudget = budget || "Moderate";
-
-  return `
-You are a precise trip planner for Southeast Asia travelers.
-Return ONLY valid minified JSON, no markdown, no commentary.
-
-Input:
-- Destination: ${locLabel}
-- Total Days: ${days}
-- Traveler Type: ${pax}
-- Budget Level: ${mBudget}
-
-Hard rules:
-- Create EXACTLY 3 itinerary options with styles: ["relaxed","balanced","packed"].
-- Each itinerary has "overview" and "daily".
-- Each "daily" is one day.
-- Each day has up to 3 "blocks". No more than 3.
-- Time format "HH:MM-HH:MM".
-- Each string like descriptions/explanations max ~140 chars, keep punchy, friendly, real.
-- Group places in same area to reduce travel time.
-- Include meal_suggestion, plan_b, rain_alternative for each block.
-- Include realistic est_daily_spend_usd and short rationale per day.
-- Give hotel_suggestions (3-5 hotels): name, address, lat, lon,
-  price_per_night_usd (number), rating (0-5), why_pick (<=120 chars).
-- currency is always "USD".
-- Also include "tips_general": array of short practical advice strings
-  (safety, scams, culture, opening hours).
-- Also include "tips_low_impact": array of climate-aware / low-carbon /
-  low-waste travel suggestions (<=100 chars each, friendly tone).
-
-Schema shape:
-{
-  "destination": string,
-  "days": number,
-  "currency": "USD",
-  "itineraries": [
-    {
-      "style": "relaxed" | "balanced" | "packed",
-      "overview": string,
-      "daily": [
-        {
-          "day": number,
-          "summary": string,
-          "blocks": [
-            {
-              "start_end": string,
-              "place": {
-                "name": string,
-                "category": string,
-                "short_desc": string,
-                "lat": number,
-                "lon": number,
-                "est_ticket": number,
-                "rating": number,
-                "travel_mode": string,
-                "est_travel_minutes": number
-              },
-              "meal_suggestion": {
-                "name": string,
-                "type": "breakfast" | "lunch" | "dinner" | "snack",
-                "price_range": "$" | "$$" | "$$$",
-                "notes": string
-              },
-              "plan_b": string,
-              "rain_alternative": string
-            }
-          ],
-          "est_daily_spend_usd": number,
-          "rationale": string
-        }
-      ]
-    }
-  ],
-  "hotel_suggestions": [
-    {
-      "name": string,
-      "address": string,
-      "lat": number,
-      "lon": number,
-      "price_per_night_usd": number,
-      "rating": number,
-      "why_pick": string
-    }
-  ],
-  "tips_general": [string],
-  "tips_low_impact": [string],
-  "notes": string
-}
-
-Output:
-ONE SINGLE LINE of valid JSON. Do not include \`\`\` or any extra text. Final char must be "}".
-`;
-}
-
-/* -------------------------------------------------
-   Safe JSON parser for AI output
-   ------------------------------------------------- */
-function safeJsonParseMaybe(text) {
-  if (!text) throw new Error("Empty response from AI");
-  let raw = String(text);
-
-  // Strip code fences if any
-  raw = raw
-    .trim()
-    .replace(/^```[a-zA-Z]*\n?/, "")
-    .replace(/```$/, "");
-
-  // Normalize weird quotes / nbsp / newlines
-  raw = raw
-    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
-    .replace(/[\u2018\u2019\u201B]/g, "'")
-    .replace(/\u00A0/g, " ")
-    .replace(/[\r\n]+/g, " ");
-
-  // Extract largest balanced {...}
-  const extractLargestJson = (s) => {
-    const start = s.indexOf("{");
-    if (start === -1) return s;
-    let inStr = false;
-    let esc = false;
-    let depth = 0;
-    let end = -1;
-    for (let i = start; i < s.length; i++) {
-      const ch = s[i];
-      if (inStr) {
-        if (!esc && ch === '"') inStr = false;
-        esc = ch === "\\" ? !esc : false;
-      } else {
-        if (ch === '"') {
-          inStr = true;
-        } else if (ch === "{") {
-          depth++;
-        } else if (ch === "}") {
-          depth--;
-          if (depth === 0) {
-            end = i;
-            break;
-          }
-        }
-      }
-    }
-    return end !== -1 ? s.slice(start, end + 1) : s.slice(start);
-  };
-  raw = extractLargestJson(raw);
-
-  // Remove trailing commas
-  raw = raw.replace(/,\s*([}\]])/g, "$1");
-
-  // Replace undefined with null
-  raw = raw.replace(/:\s*undefined(\s*[,\}])/g, ": null$1");
-
-  // Remove // and /* */ style comments
-  raw = raw
-    .replace(/\/\/[^\n\r]*[\n\r]?/g, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "");
-
-  try {
-    return JSON.parse(raw);
-  } catch (e1) {
-    const last = raw.lastIndexOf("}");
-    if (last > 0) {
-      const cand = raw.slice(0, last + 1).replace(/,\s*([}\]])/g, "$1");
-      return JSON.parse(cand);
-    }
-    throw e1;
-  }
-}
+import LocationSelect from "./components/LocationSelect";
+import LoginDialog from "./components/LoginDialog";
+import { buildPrompt } from "./utils/promptBuilder";
+import { safeJsonParseMaybe } from "./utils/jsonParser";
+import { useGoogleAuth } from "./hooks/useGoogleAuth";
 
 /* -------------------------------------------------
    Main Component
@@ -360,31 +100,12 @@ function CreateTrip() {
     }
   };
 
-  const login = useGoogleLogin({
-    onSuccess: (res) => GetUserProfile(res),
-    onError: (error) => console.log(error),
-  });
-
-  const GetUserProfile = (tokenInfo) => {
-    axios
-      .get(
-        `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${tokenInfo.access_token}`,
-        {
-          headers: {
-            Authorization: `Bearer ${tokenInfo.access_token}`,
-            Accept: "application/json",
-          },
-        }
-      )
-      .then((resp) => {
-        localStorage.setItem("user", JSON.stringify(resp.data));
-        setOpenDialog(false);
-        onGenerateTrip();
-      })
-      .catch((error) => {
-        console.error("Error fetching user profile: ", error);
-      });
+  const handleGoogleLoginSuccess = () => {
+    setOpenDialog(false);
+    onGenerateTrip();
   };
+
+  const login = useGoogleAuth(handleGoogleLoginSuccess);
 
   return (
     <div className="sm:px-10 md:px-32 lg:px-56 px-5 mt-10">
@@ -481,36 +202,7 @@ function CreateTrip() {
       </div>
 
       {/* LOGIN DIALOG */}
-      <Dialog open={openDialog}>
-        <DialogContent>
-          <DialogHeader>
-            {/* Radix a11y requirement: give DialogContent a title, tapi visually hidden */}
-            <VisuallyHidden asChild>
-              <h2>Sign In Required</h2>
-            </VisuallyHidden>
-
-            <DialogDescription>
-              <img
-                src="/logo.svg"
-                alt="logo"
-                width="100px"
-                className="items-center"
-              />
-              <h2 className="font-bold text-lg">
-                Sign In to check out your travel plan
-              </h2>
-              <p>Sign in to the App with Google authentication securely</p>
-              <Button
-                onClick={login}
-                className="w-full mt-6 flex gap-4 items-center"
-              >
-                <FcGoogle className="h-7 w-7" />
-                Sign in With Google
-              </Button>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      <LoginDialog open={openDialog} onLogin={login} />
     </div>
   );
 }
