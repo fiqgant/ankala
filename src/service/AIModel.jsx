@@ -6,8 +6,10 @@
 // The rest of the app (CreateTrip etc.) can keep using chatSession.sendMessage(prompt)
 // with the same interface as before.
 
+const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
+
 async function callBackendGenerateTrip(prompt) {
-  const resp = await fetch("/api/generateTrip", {
+  const resp = await fetch(`${API_BASE}/api/generateTrip`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

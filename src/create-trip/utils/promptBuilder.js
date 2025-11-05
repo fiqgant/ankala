@@ -1,11 +1,38 @@
 /* -------------------------------------------------
    Prompt builder (itinerary + tips + low impact)
    ------------------------------------------------- */
-export function buildPrompt({ location, noOfDays, traveler, budget }) {
+export function buildPrompt({
+  location,
+  noOfDays,
+  traveler,
+  budget,
+  travelStyle,
+  tripPace,
+  interests,
+  stayStyle,
+  dining,
+  mobility,
+  mustHave,
+}) {
   const locLabel = location?.label || "";
   const days = Number(noOfDays) || 3;
   const pax = traveler || "solo traveler";
   const mBudget = budget || "Moderate";
+  const vibe = travelStyle || "Use your best judgement for the tone.";
+  const pacePref = tripPace || "Match the energy to the destination";
+  const interestList = Array.isArray(interests) && interests.length
+    ? interests.join(", ")
+    : "Blend a variety of highlights.";
+  const stayPref = stayStyle || "Blend of comfort and location convenience.";
+  const diningPref = Array.isArray(dining) && dining.length
+    ? dining.join(", ")
+    : "Mix of beloved local eats and smart crowd-free options.";
+  const mobilityPref =
+    mobility ||
+    "Assume typical SEA city mobility with short walks and public transit where sensible.";
+  const mustHaveNotes = mustHave
+    ? mustHave.trim()
+    : "No specific requests beyond great storytelling.";
 
   return `
 You are a precise trip planner for Southeast Asia travelers.
@@ -16,6 +43,13 @@ Input:
 - Total Days: ${days}
 - Traveler Type: ${pax}
 - Budget Level: ${mBudget}
+- Trip Vibe: ${vibe}
+- Pace Preference: ${pacePref}
+- Focus Interests: ${interestList}
+- Stay Style: ${stayPref}
+- Dining Preferences: ${diningPref}
+- Mobility Notes: ${mobilityPref}
+- Must-have Notes: ${mustHaveNotes}
 
 Hard rules:
 - Create EXACTLY 3 itinerary options with styles: ["relaxed","balanced","packed"].
@@ -34,6 +68,14 @@ Hard rules:
   (safety, scams, culture, opening hours).
 - Also include "tips_low_impact": array of climate-aware / low-carbon /
   low-waste travel suggestions (<=100 chars each, friendly tone).
+
+Preference guide:
+- Align the tone of daily plans with the Trip Vibe and Pace Preference.
+- Reflect Focus Interests every day; weave them organically into blocks.
+- Prioritise Must-have Notes early in the schedule when possible.
+- Keep hotel_suggestions consistent with Stay Style and Budget Level.
+- Tailor meal_suggestion to Dining Preferences (mention if a spot is a perfect match).
+- Respect Mobility Notes in travel_mode and plan_b.
 
 Schema shape:
 {
