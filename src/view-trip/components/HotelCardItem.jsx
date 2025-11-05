@@ -1,40 +1,36 @@
-import { GetPlaceDetails, PHOTO_REF_URL } from "@/service/GlobalApi";
+import { GetPhotoForQuery, buildFallbackPhoto } from "@/service/GlobalApi";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-const toUnsplashQuery = (nameOrSeed, fb = "hotel,room,building") => {
-  if (!nameOrSeed) return fb;
-  let s = String(nameOrSeed);
-  try {
-    s = decodeURIComponent(s);
-  } catch {}
-  s = s
-    .replace(/[^\w\s,-@.&()'/]/g, " ")
-    .trim()
-    .replace(/\s+/g, ",");
-  return s || fb;
-};
-
 function HotelCardItem({ hotel }) {
-  const [photoUrl, setPhotoUrl] = useState("");
+  const fallbackQuery = "hotel room building";
+  const [photo, setPhoto] = useState(() =>
+    buildFallbackPhoto(hotel?.name || fallbackQuery, fallbackQuery)
+  );
 
   useEffect(() => {
-    hotel && GetPlacePhoto();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotel]);
+    if (!hotel) return;
 
-  const GetPlacePhoto = async () => {
-    const seed = hotel?.name || "hotel";
-    try {
-      const resp = await GetPlaceDetails({ textQuery: seed });
-      const name = resp?.data?.places?.[0]?.photos?.[3]?.name;
-      const q = toUnsplashQuery(name || seed);
-      setPhotoUrl(PHOTO_REF_URL.replace("{NAME}", q));
-    } catch {
-      const q = toUnsplashQuery(seed);
-      setPhotoUrl(PHOTO_REF_URL.replace("{NAME}", q));
-    }
-  };
+    const seed = hotel?.name || fallbackQuery;
+    setPhoto(buildFallbackPhoto(seed, fallbackQuery));
+
+    let cancelled = false;
+
+    (async () => {
+      const img = await GetPhotoForQuery({
+        textQuery: seed,
+        fallback: fallbackQuery,
+        orientation: "landscape",
+      });
+      if (!cancelled) {
+        setPhoto(img);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hotel]);
 
   return (
     <Link
@@ -46,14 +42,39 @@ function HotelCardItem({ hotel }) {
     >
       <div className="hover:scale-110 transition-all cursor-pointer mt-5 mb-8">
         <img
-          src={photoUrl}
+          src={photo?.url}
           className="rounded-xl h-[180px] w-full object-cover"
           alt={hotel?.name || "hotel"}
           onError={(e) => {
-            const q = toUnsplashQuery(hotel?.name);
-            e.currentTarget.src = PHOTO_REF_URL.replace("{NAME}", q);
+            if (photo?.fallbackUrl && e.currentTarget.src !== photo.fallbackUrl) {
+              e.currentTarget.src = photo.fallbackUrl;
+            }
           }}
         />
+        {photo?.credit && (
+          <p className="mt-1 text-[11px] text-gray-500">
+            Photo by{" "}
+            <a
+              href={
+                photo.credit.photographerProfileUrl || photo.credit.unsplashLink
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              {photo.credit.photographerName}
+            </a>{" "}
+            on{" "}
+            <a
+              href={photo.credit.unsplashLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Unsplash
+            </a>
+          </p>
+        )}
         <div className="my-2">
           <h2 className="font-medium">{hotel?.name}</h2>
           <h2 className="text-xs text-gray-500">📍{hotel?.address}</h2>

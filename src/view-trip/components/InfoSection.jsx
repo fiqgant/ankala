@@ -1,54 +1,75 @@
 import React, { useEffect, useState } from "react";
-import { GetPlaceDetails, PHOTO_REF_URL } from "@/service/GlobalApi";
-
-const toUnsplashQuery = (nameOrSeed, fb = "travel,landscape") => {
-  if (!nameOrSeed) return fb;
-  let s = String(nameOrSeed);
-  try {
-    s = decodeURIComponent(s);
-  } catch {}
-  s = s
-    .replace(/[^\w\s,-@.&()'/]/g, " ")
-    .trim()
-    .replace(/\s+/g, ",");
-  return s || fb;
-};
+import { GetPhotoForQuery, buildFallbackPhoto } from "@/service/GlobalApi";
 
 function InfoSection({ trip }) {
-  const [photoUrl, setPhotoUrl] = useState("");
+  const fallbackQuery = "travel landscape";
+  const [photo, setPhoto] = useState(() =>
+    buildFallbackPhoto(
+      trip?.userSelection?.location?.label || fallbackQuery,
+      fallbackQuery
+    )
+  );
 
   useEffect(() => {
-    trip && GetPlacePhoto();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip]);
+    if (!trip) return;
 
-  const GetPlacePhoto = async () => {
-    const seed = trip?.userSelection?.location?.label || "Indonesia travel";
-    try {
-      const resp = await GetPlaceDetails({ textQuery: seed });
-      const name = resp?.data?.places?.[0]?.photos?.[3]?.name;
-      const q = toUnsplashQuery(name || seed);
-      setPhotoUrl(PHOTO_REF_URL.replace("{NAME}", q));
-    } catch {
-      const q = toUnsplashQuery(seed);
-      setPhotoUrl(PHOTO_REF_URL.replace("{NAME}", q));
-    }
-  };
+    const seed = trip?.userSelection?.location?.label || fallbackQuery;
+    setPhoto(buildFallbackPhoto(seed, fallbackQuery));
+
+    let cancelled = false;
+
+    (async () => {
+      const img = await GetPhotoForQuery({
+        textQuery: seed,
+        fallback: fallbackQuery,
+        orientation: "landscape",
+      });
+      if (!cancelled) {
+        setPhoto(img);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trip]);
 
   const seedText = trip?.userSelection?.location?.label || "Destination";
 
   return (
     <div>
       <img
-        src={photoUrl}
+        src={photo?.url}
         alt="img"
         className="h-[340px] w-full object-cover rounded-xl"
         onError={(e) => {
-          // fallback keras kalau URL pertama gagal
-          const q = toUnsplashQuery(seedText);
-          e.currentTarget.src = PHOTO_REF_URL.replace("{NAME}", q);
+          if (photo?.fallbackUrl && e.currentTarget.src !== photo.fallbackUrl) {
+            e.currentTarget.src = photo.fallbackUrl;
+          }
         }}
       />
+      {photo?.credit && (
+        <p className="mt-2 text-xs text-gray-500">
+          Photo by{" "}
+          <a
+            href={photo.credit.photographerProfileUrl || photo.credit.unsplashLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            {photo.credit.photographerName}
+          </a>{" "}
+          on{" "}
+          <a
+            href={photo.credit.unsplashLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Unsplash
+          </a>
+        </p>
+      )}
       <div className="my-5 flex flex-col gap-2">
         <h2 className="font-bold text-2xl">{seedText}</h2>
         <div className="flex gap-5">
