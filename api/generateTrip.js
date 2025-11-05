@@ -4,12 +4,26 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const MODEL_CONFIGS = {
+  "gpt-4o-mini": {
+    temperature: 0.7,
+    max_tokens: 4096,
+  },
+  "o4-mini": {
+    temperature: 0.65,
+    max_tokens: 4096,
+  },
+};
+
 async function callOpenAIOnce(modelName, prompt, { signal } = {}) {
+  const modelConfig = MODEL_CONFIGS[modelName] || MODEL_CONFIGS["gpt-4o-mini"];
+
   const body = {
     model: modelName,
     response_format: { type: "json_object" },
-    temperature: 0.9,
-    max_tokens: 6144,
+    temperature: modelConfig.temperature,
+    max_tokens: modelConfig.max_tokens,
+    top_p: 0.9,
     messages: [
       {
         role: "system",
@@ -53,17 +67,17 @@ async function callOpenAIOnce(modelName, prompt, { signal } = {}) {
 }
 
 async function callOpenAIWithRetry(prompt) {
-  const models = ["gpt-4o-mini", "o4-mini"]; // try fast/cheap first
+  const models = ["gpt-4o-mini", "o4-mini"]; // try fast/cheap first, then fallback if needed
   for (const modelName of models) {
     let attempt = 0;
-    let backoff = 800;
-    const maxAttempts = 4;
+    let backoff = 700;
+    const maxAttempts = modelName === "gpt-4o-mini" ? 3 : 2;
 
     while (attempt < maxAttempts) {
       attempt++;
 
       const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort("request-timeout"), 25000);
+      const timeout = setTimeout(() => ctrl.abort("request-timeout"), 20000);
 
       try {
         const out = await callOpenAIOnce(modelName, prompt, {
@@ -102,7 +116,7 @@ async function callOpenAIWithRetry(prompt) {
           )}ms`
         );
         await sleep(jitter);
-        backoff = Math.min(6000, backoff * 1.8);
+        backoff = Math.min(5000, backoff * 1.7);
       }
     }
   }
