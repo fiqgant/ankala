@@ -1,0 +1,16 @@
+.animate-progress {
+  animation: ankala-progress 1.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes ankala-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(40%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}

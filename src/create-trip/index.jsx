@@ -16,6 +16,7 @@ import { chatSession } from "@/service/AIModel";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/service/firebaseConfig";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
+import LoadingOverlay from "./components/LoadingOverlay";
 import { useNavigate } from "react-router-dom";
 import LocationSelect from "./components/LocationSelect";
 import LoginDialog from "./components/LoginDialog";
@@ -149,7 +150,8 @@ function CreateTrip() {
     "border-indigo-500 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-100";
 
   return (
-    <div className="sm:px-10 md:px-24 lg:px-40 px-5 mt-10">
+    <div className="relative sm:px-10 md:px-24 lg:px-40 px-5 mt-10">
+      <LoadingOverlay visible={loading} />
       <div className="mx-auto max-w-5xl">
         <h2 className="font-bold text-3xl sm:text-4xl">
           Tell us your travel preferences 🏕️🌴
@@ -543,9 +545,16 @@ function CreateTrip() {
           </section>
           {/* BUTTON */}
           <div className="my-10 flex justify-end">
-            <Button disabled={loading} onClick={onGenerateTrip} className="h-12 rounded-2xl px-8 text-base font-semibold shadow-md">
+            <Button
+              disabled={loading}
+              onClick={onGenerateTrip}
+              className="h-12 rounded-2xl px-8 text-base font-semibold shadow-md"
+            >
               {loading ? (
-                <AiOutlineLoading3Quarters className="h-6 w-6 animate-spin" />
+                <span className="flex items-center gap-2">
+                  <AiOutlineLoading3Quarters className="h-5 w-5 animate-spin" />
+                  Preparing...
+                </span>
               ) : (
                 "Generate itinerary"
               )}

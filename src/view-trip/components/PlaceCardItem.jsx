@@ -78,8 +78,8 @@ function PlaceCardItem({ place }) {
         <div>
           <h2 className="font-bold text-lg">{place?.place}</h2>
           <p className="text-sm text-gray-500">{place?.details}</p>
-          <h2 className="text-xs font-medium mt-2 mb-2">
-            🏷️Ticket: {place?.ticket_pricing}
+          <h2 className="text-xs font-medium mt-2 mb-2 text-gray-600">
+            🏷️ Estimated ticket: {place?.ticket_pricing || "Check on arrival"}
           </h2>
         </div>
       </div>

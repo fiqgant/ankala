@@ -78,7 +78,9 @@ function HotelCardItem({ hotel }) {
         <div className="my-2">
           <h2 className="font-medium">{hotel?.name}</h2>
           <h2 className="text-xs text-gray-500">📍{hotel?.address}</h2>
-          <h2 className="text-sm">💰{hotel?.price}</h2>
+          <h2 className="text-sm text-gray-700">
+            💰 Estimated rate: {hotel?.price || "Ask for current pricing"}
+          </h2>
           <h2 className="text-sm">⭐{hotel?.rating}</h2>
         </div>
       </div>

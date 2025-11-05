@@ -167,7 +167,7 @@ function Viewtrip() {
     return hotels
       .map(
         (h, i) =>
-          `${i + 1}. ${h?.name || "-"}\n📍 ${h?.address || "-"}\n💰 ${
+          `${i + 1}. ${h?.name || "-"}\n📍 ${h?.address || "-"}\n💰 Estimated: ${
             h?.price || "N/A"
           }\n⭐ ${h?.rating ?? "N/A"}`
       )
@@ -184,7 +184,7 @@ function Viewtrip() {
                 (p) =>
                   `🕒 ${p?.time || "-"}\n📍 ${p?.place || "-"}\n📄 ${
                     p?.details || "-"
-                  }\n🏷️ Ticket: ${p?.ticket_pricing || "N/A"}`
+                  }\n🏷️ Estimated ticket: ${p?.ticket_pricing || "N/A"}`
               )
               .join("\n\n")
           : "";
@@ -194,15 +194,15 @@ function Viewtrip() {
   };
 
   const waMessage = encodeURIComponent(
-    `Hi, I'm interested in this trip:\n\n` +
+    `Hello! Based on the recommendations I just received on the Ankala travel planner, I'd like to explore this itinerary further:\n\n` +
       `📍 Destination: ${trip?.userSelection?.location?.label || "N/A"}\n` +
       `📅 Duration: ${trip?.userSelection?.noOfDays || "N/A"} days\n` +
       `👥 Travelers: ${trip?.userSelection?.traveler || "N/A"}\n\n` +
       `🏨 Hotels:\n${formatHotels(tripForView?.tripData?.hotel_options)}\n\n` +
-      `📋 Itinerary:\n${formatItinerary(
+      `📋 Itinerary (with estimated ticket costs):\n${formatItinerary(
         tripWithEnhanced?.tripData?.itinerary
       )}\n\n` +
-      `Please share more info. Thanks!`
+      `Could you help me with the booking details and latest pricing?`
   );
 
   // ====== Heuristic fallback travel tips ======
