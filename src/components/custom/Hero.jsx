@@ -4,7 +4,10 @@ import { Link } from "react-router-dom";
 
 function Hero() {
   const videoRef = useRef(null);
+  const heroRef = useRef(null);
+  const glowFrameRef = useRef(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [accentPosition, setAccentPosition] = useState({ x: 50, y: 50 });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -31,6 +34,44 @@ function Hero() {
       observer.unobserve(video);
     };
   }, [isVideoLoaded]);
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && glowFrameRef.current) {
+        window.cancelAnimationFrame(glowFrameRef.current);
+      }
+    };
+  }, []);
+
+  // Soft glow follows the cursor to make the hero feel alive.
+  const handleInteractiveGlow = (event) => {
+    if (!heroRef.current) return;
+    const { clientX, clientY } = event;
+
+    const updatePosition = () => {
+      const rect = heroRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const x = ((clientX - rect.left) / rect.width) * 100;
+      const y = ((clientY - rect.top) / rect.height) * 100;
+
+      setAccentPosition({
+        x: Math.min(Math.max(x, 0), 100),
+        y: Math.min(Math.max(y, 0), 100),
+      });
+    };
+
+    if (typeof window === "undefined") {
+      updatePosition();
+      return;
+    }
+
+    if (glowFrameRef.current) {
+      window.cancelAnimationFrame(glowFrameRef.current);
+    }
+
+    glowFrameRef.current = window.requestAnimationFrame(updatePosition);
+  };
+
   const socials = [
     {
       name: "Instagram",
@@ -82,8 +123,45 @@ function Hero() {
     },
   ];
 
+  const stats = [
+    {
+      label: "Tailored Trips",
+      value: "480+",
+      detail: "Custom itineraries crafted globally",
+      accent: "from-[#2a4634] to-[#4b906a]",
+      icon: "🧭",
+    },
+    {
+      label: "Local Partners",
+      value: "32",
+      detail: "Trusted experts on the ground",
+      accent: "from-[#356049] to-[#3e7456]",
+      icon: "🌿",
+    },
+    {
+      label: "Avg. Rating",
+      value: "4.9/5",
+      detail: "Traveler satisfaction score",
+      accent: "from-[#4b906a] to-[#86c7a1]",
+      icon: "⭐",
+    },
+  ];
+
   return (
-    <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden py-12">
+    <div
+      ref={heroRef}
+      onMouseMove={handleInteractiveGlow}
+      onMouseLeave={() => {
+        if (typeof window !== "undefined" && glowFrameRef.current) {
+          window.cancelAnimationFrame(glowFrameRef.current);
+        }
+        setAccentPosition({ x: 50, y: 50 });
+      }}
+      style={{
+        background: `radial-gradient(circle at ${accentPosition.x}% ${accentPosition.y}%, rgba(62, 116, 86, 0.18), transparent 55%)`,
+      }}
+      className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[#f5f9f6] py-12 text-[#0f1b14] transition-colors duration-500"
+    >
       {/* Full-width background gradients */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120vw] max-w-none h-[520px] bg-gradient-to-b from-[#2a4634]/20 via-[#356049]/10 to-transparent blur-3xl animate-pulse-slow"></div>
@@ -151,6 +229,33 @@ function Hero() {
           </div>
         </div>
 
+        {/* Interactive stats */}
+        <div className="grid w-full gap-4 md:grid-cols-3 animate-fade-in-up animation-delay-300">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="group relative overflow-hidden rounded-2xl border border-[#2a4634]/10 bg-white/80 p-6 text-left shadow-lg backdrop-blur transition-all duration-500 hover:-translate-y-1 hover:border-[#2a4634]/50 hover:shadow-[0_20px_45px_rgba(42,70,52,0.25)]"
+            >
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
+              <div className={`relative inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${stat.accent} text-2xl shadow-lg`}>
+                <span>{stat.icon}</span>
+              </div>
+              <p className="mt-6 text-xs font-semibold tracking-[0.35em] text-[#2a4634]/70">
+                {stat.label}
+              </p>
+              <p className="mt-2 text-3xl font-bold text-[#0f1b14]">{stat.value}</p>
+              <p className="mt-1 text-sm text-gray-600">{stat.detail}</p>
+              <div className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#2a4634]/80">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#3e7456]/40 animate-ping"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#3e7456]"></span>
+                </span>
+                Live
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Video section with enhanced green-themed styling */}
         <div className="w-[90%] max-w-[900px] animate-fade-in-up animation-delay-600 relative group mt-8">
         <div className="relative rounded-3xl overflow-hidden shadow-2xl transform transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_30px_80px_rgba(42,70,52,0.4)] border-4 border-[#2a4634]/20 hover:border-[#2a4634]/40">
@@ -166,7 +271,6 @@ function Hero() {
             src="/video.MP4"
             poster="/landing.png"
             controls
-            muted
             loop
             playsInline
             className="w-full h-auto rounded-3xl relative z-0"
