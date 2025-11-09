@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 function Hero() {
   const videoRef = useRef(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
 
   useEffect(() => {
@@ -200,7 +201,11 @@ function Hero() {
         <div className="w-[90%] max-w-[900px] animate-fade-in-up animation-delay-600 relative group mt-8">
         <div className="relative rounded-3xl overflow-hidden shadow-2xl transform transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_30px_80px_rgba(42,70,52,0.4)] border-4 border-[#2a4634]/20 hover:border-[#2a4634]/40">
           {/* Gradient overlay on hover with green tint */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1e3124]/30 via-transparent to-[#3e7456]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"></div>
+          <div
+            className={`absolute inset-0 bg-gradient-to-t from-[#1e3124]/30 via-transparent to-[#3e7456]/20 opacity-0 transition-opacity duration-500 z-10 pointer-events-none ${
+              isVideoPlaying ? "" : "group-hover:opacity-100"
+            }`}
+          ></div>
           
           {/* Animated border glow */}
           <div className="absolute -inset-1 bg-gradient-to-r from-[#2a4634] via-[#3e7456] to-[#4b906a] rounded-3xl opacity-0 group-hover:opacity-75 blur-xl transition-opacity duration-500 -z-10 animate-pulse-slow"></div>
@@ -216,6 +221,8 @@ function Hero() {
             className="w-full h-auto rounded-3xl relative z-0"
             preload="metadata"
             onLoadedData={() => setIsVideoLoaded(true)}
+            onPlay={() => setIsVideoPlaying(true)}
+            onPause={() => setIsVideoPlaying(false)}
             onMouseEnter={(e) => {
               if (e.target.paused) {
                 e.target.play().catch(() => {});
@@ -229,7 +236,11 @@ function Hero() {
           <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-[#2a4634]/30 via-[#356049]/30 to-[#4b906a]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0 blur-md"></div>
           
           {/* Play icon overlay on hover */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
+          <div
+            className={`absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 z-20 pointer-events-none ${
+              isVideoPlaying ? "" : "group-hover:opacity-100"
+            }`}
+          >
             <div className="bg-[#2a4634]/80 backdrop-blur-sm rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
               <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
