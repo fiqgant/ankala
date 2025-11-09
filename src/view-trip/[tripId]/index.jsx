@@ -9,6 +9,7 @@ import Hotels from "../components/Hotels";
 import PlacesToVisit from "../components/PlacesToVisit";
 import Footer from "../components/Footer";
 import { chatSession } from "@/service/AIModel";
+import AIModelNotice from "@/components/common/AIModelNotice";
 
 // ---------- JSON helpers ----------
 const stripCodeFence = (text) =>
@@ -40,15 +41,11 @@ const safeJsonParse = (text) => {
 function Viewtrip() {
   const { tripId } = useParams();
   const [trip, setTrip] = useState({});
-  const [enhancedItinerary, setEnhancedItinerary] = useState(null);
-  const [useEnhanced, setUseEnhanced] = useState(true);
-
   const [aiTips, setAiTips] = useState([]);
   const [carbonTips, setCarbonTips] = useState([]);
 
   const [tipsLoading, setTipsLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
-  const [enhanceLoading, setEnhanceLoading] = useState(false);
 
   useEffect(() => {
     if (tripId) GetTripData();
@@ -150,16 +147,6 @@ function Viewtrip() {
     };
   }, [trip]);
 
-  const tripWithEnhanced = useMemo(() => {
-    if (!useEnhanced || !Array.isArray(enhancedItinerary)) return tripForView;
-    return {
-      ...tripForView,
-      tripData: {
-        ...tripForView.tripData,
-        itinerary: enhancedItinerary,
-      },
-    };
-  }, [tripForView, useEnhanced, enhancedItinerary]);
 
   // ====== WhatsApp helpers ======
   const formatHotels = (hotels) => {
@@ -200,7 +187,7 @@ function Viewtrip() {
       `👥 Travelers: ${trip?.userSelection?.traveler || "N/A"}\n\n` +
       `🏨 Hotels:\n${formatHotels(tripForView?.tripData?.hotel_options)}\n\n` +
       `📋 Itinerary (with estimated ticket costs):\n${formatItinerary(
-        tripWithEnhanced?.tripData?.itinerary
+        tripForView?.tripData?.itinerary
       )}\n\n` +
       `Could you help me with the booking details and latest pricing?`
   );
@@ -293,68 +280,11 @@ function Viewtrip() {
     return tips.slice(0, 5);
   }, [tripForView]);
 
-  // ====== AI: Enhance Itinerary (same schema) ======
-  useEffect(() => {
-    const enhance = async () => {
-      const base = tripForView?.tripData?.itinerary || [];
-      if (!base.length || enhanceLoading) return;
-
-      setEnhanceLoading(true);
-      try {
-        const ctx = {
-          destination: trip?.userSelection?.location?.label || "",
-          days: Number(trip?.userSelection?.noOfDays || base.length),
-          budget: String(trip?.userSelection?.budget || ""),
-          travelers: String(trip?.userSelection?.traveler || ""),
-          itinerary: base,
-        };
-
-        const prompt =
-          `You are a senior travel planner. Improve this itinerary for flow & pacing, but keep the SAME JSON SCHEMA.\n` +
-          `Rules:\n` +
-          `- Keep an array "itinerary": [{ "day": "Day X", "plan": [{ "time": "...", "place": "...", "details": "...", "ticket_pricing": "..." }] }]\n` +
-          `- Merge nearby sights in the same day, avoid ping-pong across town, keep 3–4 blocks/day max.\n` +
-          `- Use concise, practical details (<=220 chars each).\n` +
-          `- Use existing places when possible; you may add 1–2 missing obvious highlights.\n` +
-          `- Keep ticket_pricing values plain (e.g. "Free", "$5").\n` +
-          `Return ONLY a JSON object: {"itinerary":[...]} with the same field names.\n\n` +
-          `Context:\n${JSON.stringify(ctx)}`;
-
-        const res = await chatSession.sendMessage(prompt);
-        const raw = await res?.response?.text?.();
-        const parsed = safeJsonParse(raw);
-
-        let enhanced = null;
-        if (parsed && Array.isArray(parsed.itinerary)) {
-          enhanced = parsed.itinerary;
-        } else if (Array.isArray(parsed)) {
-          // If model returned raw array, accept it
-          enhanced = parsed;
-        }
-
-        if (Array.isArray(enhanced) && enhanced.length) {
-          setEnhancedItinerary(enhanced);
-          setUseEnhanced(true);
-        } else {
-          setEnhancedItinerary(null);
-          setUseEnhanced(false);
-        }
-      } catch (e) {
-        console.warn("Enhance itinerary failed:", e?.message || e);
-        setEnhancedItinerary(null);
-        setUseEnhanced(false);
-      } finally {
-        setEnhanceLoading(false);
-      }
-    };
-    enhance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripForView]);
 
   // ====== AI travel recommendations ======
   useEffect(() => {
     const run = async () => {
-      const base = tripWithEnhanced?.tripData?.itinerary || [];
+      const base = tripForView?.tripData?.itinerary || [];
       if (!base.length || tipsLoading) return;
 
       setTipsLoading(true);
@@ -392,12 +322,12 @@ Context:\n${JSON.stringify(ctx)}`;
     };
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripWithEnhanced]);
+  }, [tripForView]);
 
   // ====== AI carbon footprint recommendations ======
   useEffect(() => {
     const runCarbon = async () => {
-      const base = tripWithEnhanced?.tripData?.itinerary || [];
+      const base = tripForView?.tripData?.itinerary || [];
       if (!base.length || carbonLoading) return;
 
       setCarbonLoading(true);
@@ -437,43 +367,21 @@ Context:\n${JSON.stringify(ctx)}`;
     };
     runCarbon();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripWithEnhanced]);
+  }, [tripForView]);
 
   const tipsFinal = aiTips.length ? aiTips : fallbackTips;
   const carbonFinal = carbonTips.length ? carbonTips : carbonFallback;
 
   return (
     <div className="p-10 md:px-20 lg:px-44 xl:px-56">
+      <AIModelNotice
+        storageKey="ai-warning-view"
+        active={Boolean(tripForView?.tripData?.itinerary?.length)}
+      />
       <InfoSection trip={trip} />
 
-      {/* Toggle enhanced/original itinerary */}
-      <div className="flex items-center gap-3 mt-6">
-        <span className="text-sm text-gray-600">Itinerary view:</span>
-        <button
-          type="button"
-          disabled={!enhancedItinerary}
-          onClick={() => setUseEnhanced((v) => !v)}
-          className={`px-3 py-1 rounded border text-sm ${
-            enhancedItinerary
-              ? "hover:bg-gray-100"
-              : "opacity-50 cursor-not-allowed"
-          }`}
-          title={
-            enhancedItinerary
-              ? "Toggle Original / Enhanced"
-              : "Enhanced itinerary not available yet"
-          }
-        >
-          {enhanceLoading
-            ? "Enhancing…"
-            : useEnhanced && enhancedItinerary
-            ? "Enhanced"
-            : "Original"}
-        </button>
-      </div>
-
       <Hotels trip={tripForView} />
-      <PlacesToVisit trip={tripWithEnhanced} />
+      <PlacesToVisit trip={tripForView} />
 
       {/* ====== Travel Recommendations ====== */}
       <div className="mt-10">

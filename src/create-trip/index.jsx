@@ -23,6 +23,7 @@ import LoginDialog from "./components/LoginDialog";
 import { buildPrompt } from "./utils/promptBuilder";
 import { safeJsonParseMaybe } from "./utils/jsonParser";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
+import AIModelNotice from "@/components/common/AIModelNotice";
 
 /* -------------------------------------------------
    Main Component
@@ -152,6 +153,7 @@ function CreateTrip() {
   return (
     <div className="relative sm:px-10 md:px-24 lg:px-40 px-5 mt-10">
       <LoadingOverlay visible={loading} />
+      <AIModelNotice storageKey="ai-warning-create" active />
       <div className="mx-auto max-w-5xl">
         <h2 className="font-bold text-3xl sm:text-4xl">
           Tell us your travel preferences 🏕️🌴
