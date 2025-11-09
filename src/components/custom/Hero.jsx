@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 function Hero() {
   const videoRef = useRef(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -31,6 +32,27 @@ function Hero() {
       observer.unobserve(video);
     };
   }, [isVideoLoaded]);
+
+  useEffect(() => {
+    if (!showWelcome) {
+      document.body.style.overflow = "";
+      return;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setShowWelcome(false);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [showWelcome]);
   const socials = [
     {
       name: "Instagram",
@@ -83,22 +105,45 @@ function Hero() {
   ];
 
   return (
-    <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden py-12">
-      {/* Full-width background gradients */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120vw] max-w-none h-[520px] bg-gradient-to-b from-[#2a4634]/20 via-[#356049]/10 to-transparent blur-3xl animate-pulse-slow"></div>
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[110vw] max-w-none h-96 bg-gradient-to-r from-[#2a4634]/12 via-[#356049]/10 to-[#1e3124]/10 blur-3xl"></div>
-        <div className="absolute bottom-[-80px] left-1/2 -translate-x-1/2 w-[140vw] max-w-none h-[420px] bg-gradient-to-tl from-[#356049]/15 to-[#1e3124]/10 blur-3xl"></div>
-
-        {/* Animated particles/leaves decoration */}
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[130vw] overflow-visible">
-          <div className="absolute top-20 left-[8%] w-24 h-24 bg-[#3e7456]/20 rounded-full blur-xl animate-float-slow"></div>
-          <div className="absolute top-40 right-[12%] w-16 h-16 bg-[#356049]/30 rounded-full blur-lg animate-float-delayed"></div>
-          <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-[#2a4634]/15 rounded-full blur-2xl animate-float"></div>
+    <>
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white/95 p-6 sm:p-8 text-center shadow-2xl">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#1e3124] via-[#2a4634] to-[#3e7456] px-5 py-2 text-sm font-semibold text-white shadow-lg">
+              By Ankala Journey
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1e3124]">
+              Selamat Datang!
+            </h2>
+            <p className="mt-4 text-base sm:text-lg text-gray-700 leading-relaxed">
+              Terima kasih sudah mengunjungi Ankala Journey. Mohon maaf apabila masih
+              ditemukan bug, karena website ini masih dalam tahap pengembangan.
+            </p>
+            <Button
+              className="mt-6 w-full rounded-2xl bg-gradient-to-r from-[#1e3124] via-[#2a4634] to-[#3e7456] py-3 text-lg font-semibold text-white shadow-lg hover:scale-105 transition"
+              onClick={() => setShowWelcome(false)}
+            >
+              Mulai Jelajahi
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
+      <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden py-12">
+        {/* Full-width background gradients */}
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120vw] max-w-none h-[520px] bg-gradient-to-b from-[#2a4634]/20 via-[#356049]/10 to-transparent blur-3xl animate-pulse-slow"></div>
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[110vw] max-w-none h-96 bg-gradient-to-r from-[#2a4634]/12 via-[#356049]/10 to-[#1e3124]/10 blur-3xl"></div>
+          <div className="absolute bottom-[-80px] left-1/2 -translate-x-1/2 w-[140vw] max-w-none h-[420px] bg-gradient-to-tl from-[#356049]/15 to-[#1e3124]/10 blur-3xl"></div>
 
-      <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 md:px-20 text-center">
+          {/* Animated particles/leaves decoration */}
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[130vw] overflow-visible">
+            <div className="absolute top-20 left-[8%] w-24 h-24 bg-[#3e7456]/20 rounded-full blur-xl animate-float-slow"></div>
+            <div className="absolute top-40 right-[12%] w-16 h-16 bg-[#356049]/30 rounded-full blur-lg animate-float-delayed"></div>
+            <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-[#2a4634]/15 rounded-full blur-2xl animate-float"></div>
+          </div>
+        </div>
+
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 md:px-20 text-center">
         {/* Animated heading with enhanced green gradient */}
         <div className="mt-10 space-y-6 animate-fade-in-up">
           <h1 className="font-extrabold text-[40px] md:text-[60px] lg:text-[80px] leading-tight tracking-tight">
@@ -166,7 +211,6 @@ function Hero() {
             src="/video.MP4"
             poster="/landing.png"
             controls
-            muted
             loop
             playsInline
             className="w-full h-auto rounded-3xl relative z-0"
@@ -260,7 +304,7 @@ function Hero() {
         ))}
       </div>
     </div>
-  </div>
+    </>
   );
 }
 
