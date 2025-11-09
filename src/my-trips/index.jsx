@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/service/firebaseConfig";
 import UserTripCardItem from "./components/UserTripCardItem";
 
@@ -8,6 +8,7 @@ function MyTrips() {
   const navigate = useNavigate();
   const [userTrips, setUserTrips] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     GetUserTrips();
@@ -30,13 +31,29 @@ function MyTrips() {
       const querySnapshot = await getDocs(q);
       const trips = [];
       querySnapshot.forEach((doc) => {
-        trips.push(doc.data());
+        trips.push({ id: doc.id, ...doc.data() });
       });
       setUserTrips(trips);
     } catch (error) {
       console.error("Failed to fetch trips", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteTrip = async (tripId) => {
+    if (!tripId) return;
+    const confirmDelete = window.confirm("Hapus trip ini dari daftar Anda?");
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingId(tripId);
+      await deleteDoc(doc(db, "AITrips", tripId));
+      setUserTrips((prev) => prev.filter((trip) => trip.id !== tripId));
+    } catch (error) {
+      console.error("Failed to delete trip", error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -78,7 +95,12 @@ function MyTrips() {
     return (
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {userTrips.map((trip) => (
-          <UserTripCardItem trip={trip} key={trip?.id} />
+          <UserTripCardItem
+            trip={trip}
+            key={trip?.id}
+            onDelete={handleDeleteTrip}
+            isDeleting={deletingId === trip?.id}
+          />
         ))}
       </div>
     );

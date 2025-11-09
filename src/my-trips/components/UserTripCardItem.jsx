@@ -2,7 +2,7 @@ import { GetPhotoForQuery, buildFallbackPhoto } from "@/service/GlobalApi";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-function UserTripCardItem({ trip }) {
+function UserTripCardItem({ trip, onDelete, isDeleting }) {
   const fallbackQuery = "travel";
   const locationLabel = trip?.userSelection?.location?.label || "Your trip";
   const {
@@ -48,6 +48,25 @@ function UserTripCardItem({ trip }) {
     >
       <div className="flex h-full flex-col overflow-hidden rounded-[28px] border border-white/60 bg-white/80 shadow-lg transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
         <div className="relative h-56 overflow-hidden">
+          <div className="absolute right-4 top-4 z-20 flex flex-col items-end gap-2 text-xs font-medium text-white">
+            {noOfDays && (
+              <span className="rounded-full bg-black/60 px-3 py-1 backdrop-blur">
+                {noOfDays} {noOfDays > 1 ? "days" : "day"}
+              </span>
+            )}
+            <button
+              type="button"
+              className="rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur transition hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete?.(trip?.id);
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Menghapus..." : "Hapus"}
+            </button>
+          </div>
           <img
             src={photo?.url || "/placeholder.jpg"}
             alt={locationLabel}
@@ -65,11 +84,6 @@ function UserTripCardItem({ trip }) {
           <div className="absolute left-5 top-5 rounded-full bg-white/95 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#2a4634] shadow">
             {locationLabel}
           </div>
-          {noOfDays && (
-            <div className="absolute right-5 top-5 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-              {noOfDays} {noOfDays > 1 ? "days" : "day"}
-            </div>
-          )}
           {photo?.credit && (
             <p className="absolute bottom-2 left-5 text-[10px] text-white/70">
               Photo by{" "}
