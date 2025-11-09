@@ -15,7 +15,7 @@ export function buildPrompt({
   mustHave,
 }) {
   const locLabel = location?.label || "";
-  const days = Number(noOfDays) || 3;
+  const days = Math.max(1, Number(noOfDays) || 3);
   const pax = traveler || "solo traveler";
   const mBudget = budget || "Moderate";
   const vibe = travelStyle || "Use your best judgement for the tone.";
@@ -40,7 +40,7 @@ Return ONLY valid minified JSON, no markdown, no commentary.
 
 Input:
 - Destination: ${locLabel}
-- Total Days: ${days}
+- Total Days: ${days} (plan exactly ${days} sequential days)
 - Traveler Type: ${pax}
 - Budget Level: ${mBudget}
 - Trip Vibe: ${vibe}
@@ -54,7 +54,8 @@ Input:
 Hard rules:
 - Create EXACTLY 3 itinerary options with styles: ["relaxed","balanced","packed"].
 - Each itinerary has "overview" and "daily".
-- Each "daily" is one day.
+- Each itinerary's "daily" array must contain exactly ${days} items, covering consecutive days (Day 1 to Day ${days}).
+- Each "daily" item represents one whole day. Do not merge multiple days into one entry or leave blanks.
 - Each day has up to 3 "blocks". No more than 3.
 - Time format "HH:MM-HH:MM".
 - Each string like descriptions/explanations max ~140 chars, keep punchy, friendly, real.
