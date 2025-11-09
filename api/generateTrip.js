@@ -7,11 +7,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MODEL_CONFIGS = {
   "gpt-4o-mini": {
     temperature: 0.7,
-    max_tokens: 4096,
+    max_completion_tokens: 4096,
   },
   "o4-mini": {
     temperature: 0.65,
-    max_tokens: 4096,
+    max_completion_tokens: 4096,
   },
 };
 
@@ -22,7 +22,7 @@ async function callOpenAIOnce(modelName, prompt, { signal } = {}) {
     model: modelName,
     response_format: { type: "json_object" },
     temperature: modelConfig.temperature,
-    max_tokens: modelConfig.max_tokens,
+    max_completion_tokens: modelConfig.max_completion_tokens,
     top_p: 0.9,
     messages: [
       {
