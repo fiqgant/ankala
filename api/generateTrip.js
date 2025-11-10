@@ -23,7 +23,6 @@ async function callOpenAIOnce(modelName, prompt, { signal } = {}) {
     model: modelName,
     response_format: { type: "json_object" },
     max_completion_tokens: modelConfig.max_completion_tokens,
-    top_p: 0.9,
     messages: [
       {
         role: "system",
