@@ -56,7 +56,7 @@ Hard rules:
 - Each itinerary has "overview" and "daily".
 - Each itinerary's "daily" array must contain exactly ${days} items, covering consecutive days (Day 1 to Day ${days}).
 - Each "daily" item represents one whole day. Do not merge multiple days into one entry or leave blanks.
-- Each day has up to 3 "blocks". No more than 3.
+- Each day has between 2 and 3 "blocks" (activities). Never return fewer than 2 blocks per day, and make the blocks distinct locations/experiences.
 - Time format "HH:MM-HH:MM".
 - Each string like descriptions/explanations max ~140 chars, keep punchy, friendly, real.
 - Group places in same area to reduce travel time.
