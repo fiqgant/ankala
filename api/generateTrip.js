@@ -7,10 +7,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MODEL_CONFIGS = {
   "gpt-4o-mini": {
     temperature: 0.7,
+    supportsTemperature: true,
     max_completion_tokens: 4096,
   },
   "o4-mini": {
-    temperature: 0.65,
+    supportsTemperature: false,
     max_completion_tokens: 4096,
   },
 };
@@ -21,7 +22,6 @@ async function callOpenAIOnce(modelName, prompt, { signal } = {}) {
   const body = {
     model: modelName,
     response_format: { type: "json_object" },
-    temperature: modelConfig.temperature,
     max_completion_tokens: modelConfig.max_completion_tokens,
     top_p: 0.9,
     messages: [
@@ -38,6 +38,10 @@ async function callOpenAIOnce(modelName, prompt, { signal } = {}) {
       },
     ],
   };
+
+  if (modelConfig.supportsTemperature && typeof modelConfig.temperature === "number") {
+    body.temperature = modelConfig.temperature;
+  }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
